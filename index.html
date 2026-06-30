@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Painel de Vendas &amp; Ofertas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
+<style>
+:root{
+  --bg:#F2F4F0;
+  --surface:#FFFFFF;
+  --surface-2:#FAFBF9;
+  --border:#E2E6DE;
+  --border-strong:#CDD4C9;
+  --ink:#16241D;
+  --ink-2:#4A5A50;
+  --muted:#7C8A80;
+  --accent:#1D9E75;      /* verde = ofertas */
+  --accent-soft:#E4F4EC;
+  --blue:#2F6FB0;        /* azul = totais */
+  --blue-soft:#E6EFF7;
+  --lime:#ADFF2F;        /* o destaque literal da planilha */
+  --warn:#B26B00;
+  --warn-soft:#FBF0DD;
+  --danger:#C0392B;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(22,36,29,.04), 0 8px 24px rgba(22,36,29,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-.01em}
+button{font-family:inherit}
+.app{display:grid;grid-template-columns:300px 1fr;min-height:100vh}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  padding:22px 20px 32px;
+  display:flex;flex-direction:column;gap:18px;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .mark{
+  width:38px;height:38px;border-radius:10px;flex:none;
+  background:linear-gradient(150deg,var(--accent),#15795a);
+  display:grid;place-items:center;color:#fff;
+  box-shadow:0 4px 10px rgba(29,158,117,.3);
+}
+.brand .mark svg{width:21px;height:21px}
+.brand h1{font-size:16px;font-weight:600;line-height:1.15}
+.brand p{margin:1px 0 0;font-size:11.5px;color:var(--muted)}
+.side-section-title{
+  font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);margin:4px 0 -4px;
+}
+.uploader{
+  border:1.5px dashed var(--border-strong);
+  border-radius:11px;padding:11px 12px;cursor:pointer;
+  transition:border-color .15s, background .15s;
+  display:flex;align-items:center;gap:10px;background:var(--surface-2);
+}
+.uploader:hover{border-color:var(--accent);background:var(--accent-soft)}
+.uploader.req{border-color:var(--accent)}
+.uploader.loaded{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
+.uploader .ic{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center;background:#fff;border:1px solid var(--border)}
+.uploader .ic svg{width:16px;height:16px;color:var(--ink-2)}
+.uploader .lbl{font-size:12px;font-weight:500;line-height:1.25}
+.uploader .lbl .req-star{color:var(--accent)}
+.uploader .fname{font-size:10.5px;color:var(--accent);font-weight:500;margin-top:2px;word-break:break-all}
+.uploader .hint{font-size:10.5px;color:var(--muted);margin-top:1px}
+.uploader input{display:none}
+.field label{display:block;font-size:11.5px;font-weight:600;margin-bottom:5px;color:var(--ink-2)}
+select,.range-wrap{width:100%}
+select{
+  appearance:none;width:100%;padding:8px 30px 8px 11px;border:1px solid var(--border-strong);
+  border-radius:9px;background:var(--surface-2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C8A80' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>") no-repeat right 10px center;
+  font-size:12.5px;color:var(--ink);cursor:pointer;
+}
+select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+.range-val{font-size:11.5px;color:var(--muted);margin-top:3px}
+.legend-card{
+  border:1px solid var(--border);border-radius:11px;padding:11px 12px;background:var(--surface-2);
+  font-size:11.5px;color:var(--ink-2);line-height:1.45;
+}
+.legend-card .chip{
+  display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);
+}
+.legend-card .swatch{width:13px;height:13px;border-radius:3px;background:var(--lime);border:1px solid #8fc424;display:inline-block;vertical-align:-2px}
+.btn{
+  border:none;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:filter .15s,background .15s;
+}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-accent:hover{filter:brightness(1.06)}
+.btn-ghost{background:transparent;color:var(--ink-2);border:1px solid var(--border-strong)}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.side-foot{margin-top:auto;font-size:10.5px;color:var(--muted);line-height:1.5}
+
+/* ---------- Main ---------- */
+.main{padding:26px 34px 60px;max-width:1280px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:4px}
+.page-head h2{font-size:27px;font-weight:700}
+.page-head .period{
+  font-size:12.5px;color:var(--ink-2);background:var(--surface);border:1px solid var(--border);
+  border-radius:999px;padding:6px 14px;font-weight:500;
+}
+.page-head .period b{color:var(--accent)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:22px 0 24px;flex-wrap:wrap}
+.tab{
+  border:none;background:transparent;padding:10px 15px;font-size:13px;font-weight:500;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:6px 6px 0 0;transition:color .15s;
+}
+.tab:hover{color:var(--ink-2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+
+.panel{animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.panel{animation:none}}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:8px}
+.kpi{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 16px 15px;position:relative;overflow:hidden;box-shadow:var(--shadow);
+}
+.kpi::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--blue)}
+.kpi.green::before{background:var(--accent)}
+.kpi .k-label{font-size:11.5px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:5px}
+.kpi .k-value{font-family:'JetBrains Mono',monospace;font-size:25px;font-weight:600;margin-top:7px;letter-spacing:-.01em;color:var(--ink)}
+.kpi .k-sub{font-size:11px;color:var(--ink-2);margin-top:3px}
+
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px 18px 14px;box-shadow:var(--shadow);margin-top:18px;
+}
+.card h3{font-size:14.5px;font-weight:600;margin-bottom:2px}
+.card .card-sub{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.card-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:920px){.card-row{grid-template-columns:1fr}}
+
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:3px;gap:2px;margin-bottom:6px}
+.seg button{border:none;background:transparent;padding:6px 13px;font-size:12px;font-weight:500;color:var(--ink-2);border-radius:7px;cursor:pointer}
+.seg button.active{background:var(--accent);color:#fff;font-weight:600}
+
+.ctrl-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:10px}
+.ctrl{display:flex;flex-direction:column;gap:4px;min-width:180px}
+.ctrl label{font-size:11px;font-weight:600;color:var(--ink-2)}
+.ctrl .slider-line{display:flex;align-items:center;gap:10px}
+.ctrl .slider-line b{font-family:'JetBrains Mono';font-size:12px;color:var(--accent);min-width:24px}
+
+.plot{width:100%}
+.banner{
+  border-radius:11px;padding:11px 14px;font-size:12.5px;display:flex;gap:9px;align-items:flex-start;margin-top:14px;
+  border:1px solid;line-height:1.45;
+}
+.banner.info{background:var(--blue-soft);border-color:#bcd6ee;color:#1f4f7d}
+.banner.warn{background:var(--warn-soft);border-color:#efd9ac;color:#7a4b06}
+.banner.ok{background:var(--accent-soft);border-color:#bfe6d4;color:#0f6b4d}
+.menu{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:5px;margin:0 0 16px}
+.menu .mi{flex:1;border:none;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:13px;padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.menu .mi.active{background:var(--accent);color:#04130d}
+.menu .mi svg{width:16px;height:16px}
+.cv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cv-chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--border-strong);background:var(--surface-2);border-radius:999px;padding:5px 11px;cursor:pointer;font-size:12px;font-weight:500}
+.cv-chip.on{border-color:var(--accent);background:var(--accent-soft)}
+.cv-chip input{accent-color:var(--accent);margin:0}
+.cv-sw{width:15px;height:15px;border-radius:4px;border:1px solid #0006;display:inline-block}
+.cv-step{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.cv-step .n{flex:0 0 26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:13px}
+.cv-step .t{font-weight:600;font-size:14px}
+.banner .bi{flex:none;margin-top:1px}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+thead th{
+  text-align:left;font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+  padding:8px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);
+}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--surface-2)}
+tbody tr:hover{background:var(--surface-2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.table-scroll{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-top:8px}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:#0f6b4d}
+
+.alert{
+  border-radius:10px;padding:11px 13px;font-size:12.5px;margin-bottom:9px;display:flex;gap:10px;align-items:flex-start;
+  background:var(--warn-soft);border:1px solid #efd9ac;color:#6f4505;line-height:1.45;
+}
+.alert .ai{font-size:15px;flex:none;line-height:1.3}
+.insights li{margin-bottom:9px;font-size:13px;color:var(--ink-2);line-height:1.55}
+.insights li b{color:var(--ink);font-weight:600}
+
+/* ---------- Empty / loading ---------- */
+.empty-wrap{display:grid;place-items:center;min-height:80vh;padding:30px}
+.empty{
+  max-width:560px;text-align:center;background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:40px 38px;box-shadow:var(--shadow);
+}
+.empty .big-ic{width:62px;height:62px;border-radius:16px;margin:0 auto 18px;display:grid;place-items:center;
+  background:linear-gradient(150deg,var(--accent),#15795a);color:#fff;box-shadow:0 8px 20px rgba(29,158,117,.3)}
+.empty .big-ic svg{width:30px;height:30px}
+.empty h2{font-size:24px;font-weight:700;margin-bottom:10px}
+.empty p{color:var(--ink-2);font-size:13.5px;margin:0 0 8px}
+.empty .green-word{color:var(--accent);font-weight:600}
+.empty .cta{display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+
+.overlay{
+  position:fixed;inset:0;background:rgba(242,244,240,.82);backdrop-filter:blur(2px);
+  display:none;place-items:center;z-index:50;
+}
+.overlay.show{display:grid}
+.spinner{width:42px;height:42px;border:4px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.overlay .box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 36px;text-align:center;box-shadow:var(--shadow)}
+.overlay .box p{font-size:13px;color:var(--ink-2);margin:0}
+
+.hidden{display:none !important}
+@media (max-width:780px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .main{padding:20px 16px 50px}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg></div>
+      <div><h1>Painel de Vendas</h1><p>Vendas &amp; ofertas por destaque verde</p></div>
+    </div>
+
+    <div class="menu" id="main-menu">
+      <button class="mi active" data-screen="panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Painel</button>
+      <button class="mi" data-screen="conv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>Conversor</button>
+    </div>
+
+    <div id="side-panel-ctrls">
+    <div class="side-section-title">Planilhas</div>
+
+    <label class="uploader req" id="up-ofertas-box">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V5a2 2 0 0 1 2-2h6.6a2 2 0 0 1 1.4.6l7.8 7.8a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg></div>
+      <div>
+        <div class="lbl">Ofertas <span class="req-star">*</span></div>
+        <div class="hint" id="up-ofertas-hint">detalhado por produto/dia</div>
+      </div>
+      <input type="file" id="up-ofertas" accept=".xls,.xlsx" />
+    </label>
+
+    <label class="uploader" id="up-semoff-box">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l3-3 3 2 4-5"/></svg></div>
+      <div><div class="lbl">Vendas sem ofertas</div><div class="hint" id="up-semoff-hint">resumo por dia · recomendado</div></div>
+      <input type="file" id="up-semoff" accept=".xls,.xlsx" />
+    </label>
+
+    <label class="uploader" id="up-itens-box">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3"/><path d="M3 8h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 12h6"/></svg></div>
+      <div><div class="lbl">Itens / Estoque</div><div class="hint" id="up-itens-hint">por produto · habilita 2 abas</div></div>
+      <input type="file" id="up-itens" accept=".xls,.xlsx" />
+    </label>
+
+    <div class="side-section-title">Configurações</div>
+    <div class="field">
+      <label>Nível de "família"</label>
+      <select id="fam-select">
+        <option value="sub">Subgrupo (recomendado)</option>
+        <option value="gru">Grupo</option>
+        <option value="cat">Categoria</option>
+        <option value="sec">Seção</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Alerta de queda de faturamento</label>
+      <input type="range" id="drop-range" min="10" max="40" step="5" value="15" />
+      <div class="range-val">Sinaliza dias <b id="drop-val" class="tnum">15%</b> abaixo da média do mesmo dia da semana.</div>
+    </div>
+
+    <div class="legend-card">
+      O painel recebe duas planilhas: <b>Ofertas</b> (detalhada por produto/dia) e <b>Vendas sem ofertas</b> (resumo por dia). O total da loja é a soma das duas; as ofertas vêm da primeira.
+    </div>
+
+    <button class="btn btn-ghost" id="demo-btn">Carregar dados de demonstração</button>
+    </div><!-- /side-panel-ctrls -->
+
+    <div class="side-foot">
+      Tudo é processado no seu navegador. Nenhuma planilha é enviada para servidores.
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main">
+    <div id="empty-state" class="empty-wrap">
+      <div class="empty">
+        <div class="big-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+        <h2>Painel de Vendas &amp; Ofertas</h2>
+        <p>Comece enviando a planilha de <b>Ofertas</b> (detalhada por produto/dia). Adicione <b>Vendas sem ofertas</b> (resumo por dia) para que o total da loja seja <span class="green-word">ofertas + sem ofertas</span>.</p>
+        <p style="font-size:12.5px;color:var(--muted)">KPIs do período · evolução diária · ranking de melhores dias · ofertas por família · comparativos mensais · alertas e insights automáticos.</p>
+        <div class="cta">
+          <button class="btn btn-accent" id="empty-upload">Enviar planilha de ofertas</button>
+          <button class="btn btn-ghost" id="empty-demo">Ver demonstração</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dashboard" class="hidden">
+      <div class="page-head">
+        <h2>Painel de Vendas &amp; Ofertas</h2>
+        <div class="period" id="period-pill"></div>
+      </div>
+
+      <div id="detbar"></div>
+
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="vis">Visão geral</button>
+        <button class="tab" data-tab="dest">Destaques</button>
+        <button class="tab" data-tab="ofe">Ofertas por família</button>
+        <button class="tab" data-tab="prod">Produtos em oferta</button>
+        <button class="tab" data-tab="fora">Fora de oferta</button>
+        <button class="tab" data-tab="estoque">Não pode faltar</button>
+        <button class="tab" data-tab="evo">Evolução</button>
+        <button class="tab" data-tab="alert">Alertas &amp; insights</button>
+      </nav>
+
+      <section id="panel" class="panel"></section>
+    </div>
+
+    <!-- ============ TELA: CONVERSOR ============ -->
+    <div id="screen-conv" class="hidden">
+      <div class="page-head"><h2>Conversor de planilhas</h2></div>
+      <div class="banner info" style="margin-bottom:16px"><span class="bi">ℹ️</span><div>Gera os três arquivos do painel a partir das planilhas <b>cruas</b> (Volume com ofertas em verde + Faturamento). Ao converter, os dados já entram no painel — e você ainda pode baixar os arquivos. Tudo roda no seu navegador.</div></div>
+
+      <div class="card">
+        <div class="cv-step"><div class="n">1</div><div class="t">Planilha de Volume <span class="req-star">*</span></div></div>
+        <div class="card-sub">Com os itens em oferta destacados em verde. Precisa ser <b>.xlsx</b> — se a sua é .xls, abra no Excel/LibreOffice e use "Salvar como → .xlsx" (o verde é mantido). Contém também o estoque.</div>
+        <label class="uploader" id="cv-vol-box" style="margin-top:6px">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+          <div><div class="lbl">Selecionar volume (.xlsx)</div><div class="hint" id="cv-vol-hint">produto × dia, com destaques verdes</div></div>
+          <input type="file" id="cv-vol" accept=".xlsx" />
+        </label>
+        <div id="cv-color-wrap" class="hidden">
+          <div class="card-sub" style="margin:14px 0 2px">Cor(es) consideradas <b>oferta</b> (o verde é pré-marcado):</div>
+          <div class="cv-chips" id="cv-chips"></div>
+          <div id="cv-valid" style="margin-top:14px"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cv-step"><div class="n">2</div><div class="t">Planilha de Faturamento</div></div>
+        <div class="card-sub">AR_Vndas (mesmos produtos × dias, valores em R$). Pode ser .xls ou .xlsx. Opcional.</div>
+        <label class="uploader" id="cv-fat-box" style="margin-top:6px">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div><div class="lbl">Selecionar faturamento</div><div class="hint" id="cv-fat-hint">opcional · .xls/.xlsx</div></div>
+          <input type="file" id="cv-fat" accept=".xls,.xlsx" />
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="cv-step"><div class="n">3</div><div class="t">Converter</div></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-accent" id="cv-go" disabled>Converter e carregar no painel</button>
+          <span class="card-sub" id="cv-go-hint" style="margin:0">Envie ao menos a planilha de volume.</span>
+        </div>
+        <div id="cv-result" class="hidden">
+          <div class="kpi-grid" id="cv-kpis" style="margin-top:14px"></div>
+          <div class="banner ok" style="margin-top:14px"><span class="bi">✅</span><div>Dados carregados no painel! Abra a aba <b>Painel</b> no menu lateral. Você também pode baixar os arquivos:</div></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            <button class="btn btn-accent" id="cv-dl-off">⬇ Ofertas_em_destaque.xlsx</button>
+            <button class="btn btn-ghost" id="cv-dl-sem">⬇ Vendas_sem_ofertas.xlsx</button>
+            <button class="btn btn-ghost" id="cv-dl-item">⬇ Itens_por_produto.xlsx</button>
+            <button class="btn btn-accent" id="cv-open" style="margin-left:auto">Abrir painel →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="box"><div class="spinner"></div><p id="overlay-msg">Lendo planilha…</p></div>
+</div>
+
+<script>
+/* =======================================================================
+   Núcleo — porte de sales_core.py para o navegador
+   ======================================================================= */
+const WD = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+const WD_ORDER = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+const MES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const ACCENT = "#1D9E75", BLUE = "#2F6FB0", MUTED = "#B4B2A9";
+const META_FIELDS = ["Procod","Prodsc","Und","Estq","DscDepto","DscSecao","DscGrupo","CodSGrupo","DscSGrupo","DscCat"];
+const HEADER_ALIASES = {"Estq":["Estq","Estoque"]};
+
+/* ---- detecção da cor de oferta ---- */
+/* Regra estrita original (verde-limão ~ #ADFF2F) — usada só para PRÉ-seleção */
+function isOfferRGB(r,g,b){ return (g>r)&&(g>b)&&(g>=180)&&(b<=120); }
+/* Heurística mais ampla de "parece verde" — pré-marca tons de verde do Excel
+   (#00B050, #92D050, #ADFF2F, etc.) para que nenhum tom passe despercebido */
+function looksGreen(r,g,b){ return (g>=r)&&(g>=b)&&(g>=110)&&(g-r>=25)&&(g-Math.min(r,b)>=35)&&(b<=180); }
+function rgbFromHex6(h){
+  if(!h||h.length<6) return null;
+  const s=h.slice(-6);
+  const r=parseInt(s.slice(0,2),16),g=parseInt(s.slice(2,4),16),b=parseInt(s.slice(4,6),16);
+  if([r,g,b].some(isNaN)) return null;
+  return [r,g,b];
+}
+/* Paleta indexada legada do Excel (índices comuns) */
+const INDEXED_PALETTE={
+  8:"000000",9:"FFFFFF",10:"FF0000",11:"00FF00",12:"0000FF",13:"FFFF00",14:"FF00FF",15:"00FFFF",
+  17:"00FF00",18:"FF00FF",19:"FFFF00",20:"00FFFF",43:"CCFFCC",50:"00FF00",51:"008000",
+  42:"CCFFFF",57:"008080",
+};
+/* Resolve a cor de preenchimento de uma célula ExcelJS para {key, hex|null}.
+   key agrupa cores iguais; hex existe quando dá para traduzir em RGB. */
+function fillColorKey(cell){
+  const f=cell.fill;
+  if(!f || f.type!=="pattern") return null;
+  if((f.pattern==="none" || f.pattern==null) && !f.fgColor && !f.bgColor) return null;
+  for(const c of [f.fgColor, f.bgColor]){
+    if(!c) continue;
+    if(c.argb){
+      const hex=c.argb.slice(-6).toUpperCase();
+      if(hex==="FFFFFF"||hex==="000000") continue; // ignora branco/preto "vazio"
+      return {key:"#"+hex, hex};
+    }
+    if(c.indexed!=null && INDEXED_PALETTE[c.indexed]){
+      const hex=INDEXED_PALETTE[c.indexed].toUpperCase();
+      if(hex==="FFFFFF"||hex==="000000") continue;
+      return {key:"#"+hex, hex};
+    }
+    if(c.indexed!=null) return {key:"idx:"+c.indexed, hex:null};
+    if(c.theme!=null) return {key:"tema:"+c.theme+(c.tint?(":"+Math.round(c.tint*100)):""), hex:null};
+  }
+  return null;
+}
+
+/* ---- datas ---- */
+function parseDateAny(s){
+  if(s instanceof Date && !isNaN(s)) return new Date(s.getFullYear(),s.getMonth(),s.getDate());
+  if(typeof s!=="string") return null;
+  s=s.trim(); let m;
+  if(m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)){
+    let d=+m[1],mo=+m[2],y=+m[3]; if(y<100) y+=2000;
+    const dt=new Date(y,mo-1,d); return isNaN(dt)?null:dt;
+  }
+  if(m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)){
+    const dt=new Date(+m[1],+m[2]-1,+m[3]); return isNaN(dt)?null:dt;
+  }
+  return null;
+}
+function isDateHeader(h){ return parseDateAny(h)!==null; }
+function dkey(dt){ return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0"); }
+function ymKey(dt){ return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0"); }
+function fmtDate(dt){ return String(dt.getDate()).padStart(2,"0")+"/"+String(dt.getMonth()+1).padStart(2,"0")+"/"+dt.getFullYear(); }
+function dowOf(dt){ return WD[(dt.getDay()+6)%7]; } // JS dom=0 -> Python seg=0
+
+/* ---- formatação pt-BR ---- */
+function num(v,dec=0){ if(v==null||(typeof v==="number"&&isNaN(v))) return "—"; return v.toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function brl(v,dec=0){ if(v==null||(typeof v==="number"&&isNaN(v))) return "—"; return "R$ "+v.toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+
+/* ---- normalização de célula ExcelJS ---- */
+function cellText(v){
+  if(v==null) return v;
+  if(v instanceof Date) return v;
+  if(typeof v==="object"){
+    if(v.richText) return v.richText.map(t=>t.text).join("");
+    if("text" in v) return v.text;
+    if("result" in v) return v.result;
+    return null;
+  }
+  return v;
+}
+function cellNumber(v){
+  if(typeof v==="number") return v;
+  if(v && typeof v==="object" && typeof v.result==="number") return v.result;
+  return 0;
+}
+
+function resolveMetaCols(hdr){
+  const pos={};
+  for(const field of META_FIELDS){
+    const names = HEADER_ALIASES[field]||[field];
+    let found=null;
+    for(const nm of names){
+      for(let i=0;i<hdr.length;i++){
+        const h=hdr[i];
+        if(typeof h==="string" && h.trim().startsWith(nm)){ found=i; break; }
+      }
+      if(found!==null) break;
+    }
+    pos[field]=found;
+  }
+  return pos;
+}
+
+/* ---- leitura da matriz .xlsx (com cores) via ExcelJS ---- */
+async function readXlsxMatrix(arrayBuffer, wantFill){
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(arrayBuffer);
+  const ws = wb.worksheets[0];
+  const colCount = ws.columnCount, rowCount = ws.rowCount;
+  const hdr=[];
+  const hRow = ws.getRow(1);
+  for(let c=1;c<=colCount;c++) hdr.push(cellText(hRow.getCell(c).value));
+  const dateIdx=[], dates=[];
+  hdr.forEach((h,i)=>{ const d=parseDateAny(h); if(d){ dateIdx.push(i); dates.push(d); } });
+  const mpos = resolveMetaCols(hdr);
+
+  const procods=[], metas=[], V=[], C = wantFill? [] : null;
+  const stat = {}; // key -> {key, hex, count}
+  for(let r=2;r<=rowCount;r++){
+    const row = ws.getRow(r);
+    const first = cellText(row.getCell(1).value);
+    if(first==null || first==="") continue;
+    procods.push(first);
+    const meta={};
+    for(const [k,idx] of Object.entries(mpos)) meta[k] = idx!=null ? cellText(row.getCell(idx+1).value) : null;
+    metas.push(meta);
+    const vr=[], cr=[];
+    for(const i of dateIdx){
+      const cell = row.getCell(i+1);
+      vr.push(cellNumber(cell.value));
+      if(wantFill){
+        const ck = fillColorKey(cell);
+        const key = ck? ck.key : null;
+        cr.push(key);
+        if(key){ (stat[key] = stat[key] || {key, hex: ck.hex, count:0}).count++; }
+      }
+    }
+    V.push(vr); if(wantFill) C.push(cr);
+  }
+  const colorStats = Object.values(stat).sort((a,b)=>b.count-a.count);
+  return packMatrix(procods, metas, dates, V, C, colorStats, wantFill);
+}
+
+/* ---- leitura de valores via SheetJS (.xls — sem cores) ---- */
+function readSheetMatrixValues(arrayBuffer){
+  const wb = XLSX.read(arrayBuffer,{type:"array",cellDates:true});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const aoa = XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const hdr = (aoa[0]||[]).map(h=> h instanceof Date ? h : (h==null?null:String(h)));
+  const dateIdx=[], dates=[];
+  hdr.forEach((h,i)=>{ const d=parseDateAny(h); if(d){ dateIdx.push(i); dates.push(d); } });
+  const mpos = resolveMetaCols(hdr);
+  const procods=[], metas=[], V=[];
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r]||[];
+    const first=row[0];
+    if(first==null||first==="") continue;
+    procods.push(first);
+    const meta={};
+    for(const [k,idx] of Object.entries(mpos)) meta[k] = idx!=null ? (row[idx]!=null?row[idx]:null) : null;
+    metas.push(meta);
+    const vr=[];
+    for(const i of dateIdx){ const v=row[i]; vr.push(typeof v==="number"?v:0); }
+    V.push(vr);
+  }
+  return packMatrix(procods, metas, dates, V, null, [], false);
+}
+
+function packMatrix(procods, metas, dates, V, C, colorStats, wantFill){
+  const meta = metas.map((m,i)=>{
+    const o={...m, Procod:procods[i]};
+    for(const c of ["Prodsc","DscSGrupo","DscGrupo","DscSecao","DscDepto","DscCat","Und"])
+      if(o[c]!=null) o[c]=String(o[c]).trim();
+    return o;
+  });
+  return { meta, dates, V, C: wantFill? C : null, colorStats: colorStats||[], M:null };
+}
+
+async function readMatrix(file, wantFill){
+  const ext = file.name.toLowerCase().split(".").pop();
+  const buf = await file.arrayBuffer();
+  if(ext==="xlsx") return await readXlsxMatrix(buf, wantFill);
+  if(ext==="xls"){
+    const res = readSheetMatrixValues(buf);
+    res._xlsNoColor = wantFill; // sinaliza limitação de cor
+    return res;
+  }
+  throw new Error("Formato não suportado: ."+ext);
+}
+
+/* =======================================================================
+   Importação SEPARADA de ofertas
+   Aceita dois formatos, detectados automaticamente:
+   • MATRIZ  — 1ª coluna = código do produto, cabeçalhos = datas; célula
+               em oferta marcada por cor (verde) OU por valor (X, preço, 1…).
+   • LISTA   — colunas de código + data (uma linha por produto/dia), com
+               suporte a período (data início / data fim).
+   Retorna um "offerSource":
+     {kind:'color', procods, dates, C, colorStats, srcName}
+     {kind:'set',   set:Map(code->Set(dkey)), srcName, marks, prods, days}
+   ======================================================================= */
+function normCode(x){ return String(x==null?"":x).trim(); }
+
+function truthyMark(v){
+  if(v==null||v==="") return false;
+  if(v instanceof Date) return true;
+  if(typeof v==="number") return v>0;
+  const t=String(v).trim().toLowerCase();
+  if(["0","-","–","n","nao","não","no","false","f",""].includes(t)) return false;
+  return true; // 'x','s','sim','of','oferta','ok','1', preço, %, etc.
+}
+
+const CODE_HEADER_RE = /(proc|c[oó]d|sku|item|produto|ean|gtin|refer)/i;
+const DATE_HEADER_RE = /(data|dia|dt)/i;
+const START_HEADER_RE = /(in[ií]cio|start|desde|vig[eê]ncia)/i;
+const END_HEADER_RE = /(fim|final|t[eé]rmino|termino|validade|end|at[eé])/i;
+
+async function readOffers(file){
+  const ext = file.name.toLowerCase().split(".").pop();
+  const buf = await file.arrayBuffer();
+  const srcName = file.name;
+  if(ext==="xlsx") return await readOffersXlsx(buf, srcName);
+  if(ext==="xls") return readOffersXls(buf, srcName);
+  throw new Error("Formato não suportado: ."+ext);
+}
+
+async function readOffersXlsx(buf, srcName){
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf);
+  const ws = wb.worksheets[0];
+  const colCount=ws.columnCount, rowCount=ws.rowCount;
+  const hdr=[]; const hRow=ws.getRow(1);
+  for(let c=1;c<=colCount;c++) hdr.push(cellText(hRow.getCell(c).value));
+  const dateIdx=[], dates=[];
+  hdr.forEach((h,i)=>{ const d=parseDateAny(h); if(d){ dateIdx.push(i); dates.push(d); } });
+
+  if(dateIdx.length>=2){
+    // MATRIZ
+    const procods=[], C=[], stat={};
+    const set=new Map(); let marks=0;
+    for(let r=2;r<=rowCount;r++){
+      const row=ws.getRow(r);
+      const first=cellText(row.getCell(1).value);
+      if(first==null||first==="") continue;
+      procods.push(first);
+      const cr=[]; const code=normCode(first); let s=set.get(code);
+      dateIdx.forEach((i,k)=>{
+        const cell=row.getCell(i+1);
+        const ck=fillColorKey(cell); const key=ck?ck.key:null;
+        cr.push(key);
+        if(key){ (stat[key]=stat[key]||{key,hex:ck.hex,count:0}).count++; }
+        if(truthyMark(cell.value)){ if(!s){s=new Set();set.set(code,s);} s.add(dkey(dates[k])); marks++; }
+      });
+      C.push(cr);
+    }
+    const colorStats=Object.values(stat).sort((a,b)=>b.count-a.count);
+    if(colorStats.length) return {kind:"color", procods, dates, C, colorStats, srcName};
+    return setSource(set, srcName);
+  }
+  // LISTA — extrai valores via aoa
+  const aoa=[];
+  ws.eachRow({includeEmpty:false},(row)=>{ const arr=[]; row.eachCell({includeEmpty:true},(c,col)=>{ arr[col-1]=cellText(c.value); }); aoa.push(arr); });
+  return offersFromList(aoa, srcName);
+}
+
+function readOffersXls(buf, srcName){
+  const wb=XLSX.read(buf,{type:"array",cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const hdr=(aoa[0]||[]).map(h=> h instanceof Date? h : (h==null?null:String(h)));
+  const dateIdx=[], dates=[];
+  hdr.forEach((h,i)=>{ const d=parseDateAny(h); if(d){ dateIdx.push(i); dates.push(d); } });
+  if(dateIdx.length>=2){
+    const set=new Map();
+    for(let r=1;r<aoa.length;r++){
+      const row=aoa[r]||[]; const first=row[0];
+      if(first==null||first==="") continue;
+      const code=normCode(first); let s=null;
+      dateIdx.forEach((ci,k)=>{ if(truthyMark(row[ci])){ if(!s){s=new Set();set.set(code,s);} s.add(dkey(dates[k])); } });
+    }
+    return setSource(set, srcName);
+  }
+  return offersFromList(aoa, srcName);
+}
+
+function offersFromList(aoa, srcName){
+  if(!aoa.length) throw new Error("Arquivo de ofertas vazio.");
+  const hdr=aoa[0].map(h=> h==null?"":String(h));
+  const codeCol = hdr.findIndex(h=>CODE_HEADER_RE.test(h));
+  let startCol = hdr.findIndex(h=>START_HEADER_RE.test(h) && DATE_HEADER_RE.test(h));
+  let endCol = hdr.findIndex(h=>END_HEADER_RE.test(h) && DATE_HEADER_RE.test(h));
+  if(startCol<0) startCol = hdr.findIndex(h=>START_HEADER_RE.test(h));
+  if(endCol<0) endCol = hdr.findIndex(h=>END_HEADER_RE.test(h));
+  let dateCol = hdr.findIndex(h=>DATE_HEADER_RE.test(h));
+  if(codeCol<0) throw new Error("Não encontrei uma coluna de código de produto (ex.: Procod, Código, SKU).");
+  const hasRange = startCol>=0 && endCol>=0;
+  if(!hasRange && dateCol<0) throw new Error("Não encontrei uma coluna de data (ou de período início/fim).");
+
+  const set=new Map(); let marks=0;
+  const allDates = window.__VOL_DATES__ || null; // grade de datas do volume p/ expandir período
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r]||[]; const code=normCode(row[codeCol]);
+    if(!code) continue;
+    let s=set.get(code);
+    const add=(d)=>{ if(!d) return; if(!s){s=new Set();set.set(code,s);} const k=dkey(d); if(!s.has(k)){s.add(k);marks++;} };
+    if(hasRange){
+      const d0=parseDateAny(row[startCol] instanceof Date?row[startCol]:String(row[startCol]));
+      const d1=parseDateAny(row[endCol] instanceof Date?row[endCol]:String(row[endCol]));
+      if(d0&&d1){
+        if(allDates){ allDates.forEach(d=>{ if(d>=d0&&d<=d1) add(d); }); }
+        else { for(let t=new Date(d0); t<=d1; t.setDate(t.getDate()+1)) add(new Date(t)); }
+      } else if(dateCol>=0){ add(parseDateAny(row[dateCol] instanceof Date?row[dateCol]:String(row[dateCol]))); }
+    } else {
+      add(parseDateAny(row[dateCol] instanceof Date?row[dateCol]:String(row[dateCol])));
+    }
+  }
+  return setSource(set, srcName);
+}
+
+function setSource(set, srcName){
+  let marks=0; const days=new Set();
+  set.forEach(s=>{ marks+=s.size; s.forEach(k=>days.add(k)); });
+  return {kind:"set", set, srcName, marks, prods:set.size, days:days.size};
+}
+
+
+/* ---- cupons / ticket (apenas valores) ---- */
+async function readDailyTotal(file, contains){
+  const ext = file.name.toLowerCase().split(".").pop();
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf,{type:"array",cellDates:true});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws,{raw:true,defval:null});
+  if(!rows.length) return {};
+  const cols = Object.keys(rows[0]);
+  const dateCol = cols.find(c=>String(c).trim().toLowerCase()==="data") || cols[0];
+  const tcol = cols.find(c=>String(c).toLowerCase().includes(contains.toLowerCase()));
+  if(!tcol) return {};
+  const out={};
+  for(const r of rows){
+    const d = parseDateAny(r[dateCol] instanceof Date ? r[dateCol] : String(r[dateCol]));
+    if(d && r[tcol]!=null && !isNaN(+r[tcol])) out[dkey(d)] = +r[tcol];
+  }
+  return out;
+}
+
+/* =======================================================================
+   Leitura das DUAS planilhas (somente valores — SheetJS)
+   • Ofertas: lista detalhada por produto/dia (código, família, data, volume, faturamento)
+   • Sem ofertas: resumo por dia (data, volume, faturamento)
+   ======================================================================= */
+function toNum(v){
+  if(v==null||v==="") return 0;
+  if(typeof v==="number") return v;
+  let s=String(v).trim().replace(/[^\d.,-]/g,"");
+  if(s.includes(",")&&s.includes(".")) s=s.replace(/\./g,"").replace(",",".");
+  else if(s.includes(",")) s=s.replace(",",".");
+  const n=parseFloat(s); return isNaN(n)?0:n;
+}
+async function readTable(file){
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:"array",cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const headers=(aoa[0]||[]).map(h=> h==null?"":String(h).trim());
+  return {headers, aoa};
+}
+const RE_CODE=/(proc|c[oó]d|sku|item|ean|gtin)/i;
+const RE_DATE=/(data|dia|dt)/i;
+const RE_VOL=/(volume|qtd|quant|unid|venda)/i;
+const RE_FAT=/(fatur|valor|receita|r\$|vlr)/i;
+const RE_SUB=/(subgrupo|sgrupo|fam[ií]lia)/i;
+const RE_GRU=/^grupo$|dscgrupo|^grupo /i;
+const RE_SEC=/(se[cç][aã]o)/i;
+const RE_CAT=/(categoria|categ|dsccat)/i;
+const RE_PROD=/(produto|prodsc|descri)/i;
+const findCol=(hdr,re)=> hdr.findIndex(h=> re.test(h));
+const cleanStr=v=> v==null?"":String(v).trim();
+
+async function readOffersList(file){
+  const {headers,aoa}=await readTable(file);
+  const ci={code:findCol(headers,RE_CODE), date:findCol(headers,RE_DATE),
+            vol:findCol(headers,RE_VOL), fat:findCol(headers,RE_FAT),
+            sub:findCol(headers,RE_SUB), gru:findCol(headers,RE_GRU),
+            sec:findCol(headers,RE_SEC), cat:findCol(headers,RE_CAT), prod:findCol(headers,RE_PROD)};
+  if(ci.code<0) throw new Error("Não encontrei a coluna de código do produto (Procod/Código/SKU).");
+  if(ci.date<0) throw new Error("Não encontrei a coluna de Data.");
+  if(ci.vol<0)  throw new Error("Não encontrei a coluna de Volume.");
+  const rows=[];
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r]||[]; const code=row[ci.code];
+    if(code==null||code==="") continue;
+    const d=parseDateAny(row[ci.date] instanceof Date?row[ci.date]:String(row[ci.date]));
+    if(!d) continue;
+    rows.push({
+      code:normCode(code), prod:ci.prod>=0?cleanStr(row[ci.prod]):"",
+      sub:ci.sub>=0?cleanStr(row[ci.sub]):"", gru:ci.gru>=0?cleanStr(row[ci.gru]):"",
+      sec:ci.sec>=0?cleanStr(row[ci.sec]):"", cat:ci.cat>=0?cleanStr(row[ci.cat]):"",
+      date:d, dkey:dkey(d), vol:toNum(row[ci.vol]), fat:ci.fat>=0?toNum(row[ci.fat]):0,
+    });
+  }
+  if(!rows.length) throw new Error("Nenhuma linha de oferta válida (código + data) encontrada.");
+  return {rows, hasFat: ci.fat>=0, srcName:file.name};
+}
+
+async function readSemOffDaily(file){
+  const {headers,aoa}=await readTable(file);
+  const di=findCol(headers,RE_DATE), vi=findCol(headers,RE_VOL), fi=findCol(headers,RE_FAT);
+  if(di<0) throw new Error("Não encontrei a coluna de Data.");
+  if(vi<0) throw new Error("Não encontrei a coluna de Volume.");
+  const map={};
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r]||[];
+    const d=parseDateAny(row[di] instanceof Date?row[di]:String(row[di]));
+    if(!d) continue;
+    const k=dkey(d); const m=map[k]||(map[k]={vol:0,fat:0});
+    m.vol+=toNum(row[vi]); if(fi>=0) m.fat+=toNum(row[fi]);
+  }
+  const days=Object.keys(map).length;
+  if(!days) throw new Error("Nenhuma linha diária válida (data + volume) encontrada.");
+  return {map, hasFat: fi>=0, srcName:file.name, days};
+}
+
+async function readItemsMaster(file){
+  const {headers,aoa}=await readTable(file);
+  const f=re=>findCol(headers,re);
+  const ci={
+    code:f(/^proc|^c[oó]d|sku/i), prod:f(/produto|prodsc|descr/i), und:f(/^und|unid/i),
+    sec:f(/se[cç][aã]o/i), gru:f(/^grupo$|^grupo |dscgrupo/i), sub:f(/subgrupo|sgrupo/i), cat:f(/categoria|dsccat/i),
+    estq:f(/estoque|estq/i),
+    volTot:f(/volume\s*total/i), volOff:f(/volume.*em\s*oferta/i), volFora:f(/volume.*fora/i),
+    fatTot:f(/fatur.*total/i), fatOff:f(/fatur.*em\s*oferta/i), fatFora:f(/fatur.*fora/i),
+    diasV:f(/dias.*venda/i), diasO:f(/dias.*oferta/i),
+    dem:f(/demanda/i), cob:f(/cobertura/i),
+  };
+  if(ci.code<0) throw new Error("Não encontrei a coluna de código do produto (Procod).");
+  const numOrNull=(row,i)=>{ if(i<0) return null; const v=row[i]; if(v==null||v==="") return null; return toNum(v); };
+  const rows=[];
+  for(let r=1;r<aoa.length;r++){
+    const row=aoa[r]||[]; const code=row[ci.code];
+    if(code==null||code==="") continue;
+    const volTot=ci.volTot>=0?toNum(row[ci.volTot]):0;
+    const volOff=ci.volOff>=0?toNum(row[ci.volOff]):0;
+    const fatTot=ci.fatTot>=0?toNum(row[ci.fatTot]):0;
+    const fatOff=ci.fatOff>=0?toNum(row[ci.fatOff]):0;
+    rows.push({
+      code:normCode(code), prod:ci.prod>=0?cleanStr(row[ci.prod]):("Cód. "+code), und:ci.und>=0?cleanStr(row[ci.und]):"",
+      sec:ci.sec>=0?cleanStr(row[ci.sec]):"", gru:ci.gru>=0?cleanStr(row[ci.gru]):"",
+      sub:ci.sub>=0?cleanStr(row[ci.sub]):"", cat:ci.cat>=0?cleanStr(row[ci.cat]):"",
+      estq:numOrNull(row,ci.estq),
+      volTot, volOff, volFora:ci.volFora>=0?toNum(row[ci.volFora]):(volTot-volOff),
+      fatTot, fatOff, fatFora:ci.fatFora>=0?toNum(row[ci.fatFora]):(fatTot-fatOff),
+      diasV:ci.diasV>=0?toNum(row[ci.diasV]):0, diasO:ci.diasO>=0?toNum(row[ci.diasO]):0,
+      dem:ci.dem>=0?toNum(row[ci.dem]):null, cob:numOrNull(row,ci.cob),
+    });
+  }
+  if(!rows.length) throw new Error("Nenhum item válido encontrado.");
+  const hasFat=ci.fatTot>=0, hasEstq=ci.estq>=0;
+  return {rows, hasFat, hasEstq, srcName:file.name};
+}
+
+/* =======================================================================
+   Estado da aplicação
+   ======================================================================= */
+const STATE = {
+  offers:null,   // {rows, hasFat, srcName}
+  semoff:null,   // {map, hasFat, srcName, days}
+  items:null,    // {rows, hasFat, hasEstq, srcName}  (mestre por produto)
+  famCol:"sub", dropThresh:15,
+  daily:[], active:[], has_fat:false, has_cup:false, fam:[], offerCodes:new Set(),
+  currentTab:"vis",
+};
+const FAM_FIELD={sub:"sub", gru:"gru", cat:"cat", sec:"sec"};
+function famValue(row){
+  const v=row[FAM_FIELD[STATE.famCol]];
+  return (v==null||v===""||v==="nan") ? "(sem família)" : v;
+}
+function dateFromKey(k){ const [y,m,d]=k.split("-"); return new Date(+y,+m-1,+d); }
+
+function buildOfferFamily(){
+  if(!STATE.offers) return [];
+  const acc={};
+  for(const row of STATE.offers.rows){
+    const f=famValue(row);
+    const a=acc[f]||(acc[f]={fam:f, codes:new Set(), volume_oferta:0, dias_oferta:0, fat_oferta:0});
+    a.codes.add(row.code); a.volume_oferta+=row.vol; a.dias_oferta+=1; a.fat_oferta+=row.fat;
+  }
+  return Object.values(acc).map(a=>({
+    fam:a.fam, codigos:a.codes.size, volume_oferta:Math.round(a.volume_oferta),
+    dias_oferta:a.dias_oferta, fat_oferta:a.fat_oferta
+  })).sort((x,y)=>y.volume_oferta-x.volume_oferta);
+}
+
+function recompute(){
+  if(!STATE.offers) return;
+  const dayMap={}; const codes=new Set();
+  for(const row of STATE.offers.rows){
+    const k=row.dkey;
+    const m=dayMap[k]||(dayMap[k]={date:row.date, vol_off:0, fat_off:0, codes:new Set(), fams:new Set()});
+    m.vol_off+=row.vol; m.fat_off+=row.fat; m.codes.add(row.code); m.fams.add(famValue(row));
+    codes.add(row.code);
+  }
+  const semoff=STATE.semoff? STATE.semoff.map : {};
+  const keys=new Set([...Object.keys(dayMap), ...Object.keys(semoff)]);
+  const daily=[];
+  keys.forEach(k=>{
+    const dm=dayMap[k]; const so=semoff[k]||{vol:0,fat:0};
+    const d=dm?dm.date:dateFromKey(k);
+    const vol_off=dm?dm.vol_off:0, fat_off=dm?dm.fat_off:0;
+    const rec={
+      date:d, dkey:k, dow:dowOf(d), mes:ymKey(d),
+      volume_ofertas:vol_off, fat_ofertas:fat_off,
+      volume_total:vol_off+so.vol, faturamento:fat_off+so.fat,
+      qtd_ofertas_cod: dm?dm.codes.size:0, qtd_familias_oferta: dm?dm.fams.size:0,
+      cupons:NaN, ticket_medio:NaN,
+    };
+    rec.pct_fat_oferta = rec.faturamento>0 ? 100*fat_off/rec.faturamento : NaN;
+    daily.push(rec);
+  });
+  daily.sort((a,b)=>a.date-b.date);
+  const active = daily.filter(r=> Math.max(r.volume_total, r.faturamento) > 0);
+  const has_fat = (STATE.offers.hasFat || (STATE.semoff&&STATE.semoff.hasFat)) &&
+                  active.reduce((s,r)=>s+r.faturamento,0) > 0;
+  const fam = buildOfferFamily();
+  Object.assign(STATE, {daily, active, has_fat, has_cup:false, fam, offerCodes:codes});
+}
+
+/* =======================================================================
+   Helpers de estatística
+   ======================================================================= */
+function sum(a){ return a.reduce((s,x)=>s+(isNaN(x)?0:x),0); }
+function mean(a){ const v=a.filter(x=>!isNaN(x)); return v.length? sum(v)/v.length : NaN; }
+function corr(x,y){
+  const pairs=[]; for(let i=0;i<x.length;i++) if(!isNaN(x[i])&&!isNaN(y[i])) pairs.push([x[i],y[i]]);
+  const n=pairs.length; if(n<3) return NaN;
+  const mx=mean(pairs.map(p=>p[0])), my=mean(pairs.map(p=>p[1]));
+  let sxy=0,sx=0,sy=0;
+  for(const [a,b] of pairs){ sxy+=(a-mx)*(b-my); sx+=(a-mx)**2; sy+=(b-my)**2; }
+  return (sx&&sy)? sxy/Math.sqrt(sx*sy) : NaN;
+}
+function groupByMean(rows, key, val){
+  const g={}; for(const r of rows){ const k=r[key]; const v=r[val]; if(isNaN(v)) continue; (g[k]=g[k]||[]).push(v); }
+  const out={}; for(const k in g) out[k]=mean(g[k]); return out;
+}
+
+const PLOT_FONT = {family:"Inter, sans-serif", size:12, color:"#4A5A50"};
+const PLOT_CFG = {responsive:true, displayModeBar:false};
+function baseLayout(extra={}){
+  return Object.assign({
+    paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+    font:PLOT_FONT, margin:{t:10,b:36,l:54,r:14},
+    xaxis:{gridcolor:"#EEF1EC", zeroline:false},
+    yaxis:{gridcolor:"#EEF1EC", zeroline:false},
+    legend:{orientation:"h", y:1.12, x:0, font:{size:11}},
+  }, extra);
+}
+
+/* =======================================================================
+   Renderização das abas
+   ======================================================================= */
+function el(html){ const t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; }
+const panel = document.getElementById("panel");
+
+function renderTab(tab){
+  STATE.currentTab=tab;
+  panel.innerHTML="";
+  panel.classList.remove("panel"); void panel.offsetWidth; panel.classList.add("panel");
+  ({vis:renderVis, dest:renderDest, ofe:renderOfe, prod:renderProd, fora:renderFora, estoque:renderEstoque, evo:renderEvo, alert:renderAlert}[tab])();
+}
+
+/* ---------- Barra de detecção de cores de oferta ---------- */
+function colorSwatch(stat){
+  if(stat.hex) return `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#${stat.hex};border:1px solid rgba(0,0,0,.2);vertical-align:-2px"></span>`;
+  return `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:repeating-linear-gradient(45deg,#ddd,#ddd 3px,#bbb 3px,#bbb 6px);border:1px solid rgba(0,0,0,.2);vertical-align:-2px" title="cor sem RGB legível (tema/indexada)"></span>`;
+}
+function colorLabel(stat){
+  if(stat.hex) return "#"+stat.hex;
+  if(stat.key.startsWith("tema:")) return "tema "+stat.key.split(":")[1];
+  if(stat.key.startsWith("idx:")) return "indexada "+stat.key.split(":")[1];
+  return stat.key;
+}
+function renderDetectionBar(){
+  const host=document.getElementById("detbar");
+  if(!host) return;
+  host.innerHTML="";
+  if(!STATE.offers) return;
+  const a=STATE.active;
+  const offRows=STATE.offers.rows.length;
+  const offFat=sum(a.map(r=>r.fat_ofertas)), totFat=sum(a.map(r=>r.faturamento));
+  const share = totFat>0 ? offFat/totFat*100 : null;
+  const semoffLoaded=!!STATE.semoff;
+  const card=el(`<div class="card" style="margin:0 0 16px;padding:13px 16px">
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="width:11px;height:11px;border-radius:3px;background:var(--accent);display:inline-block"></span>
+        <div><div style="font-weight:600;font-size:13px">Ofertas</div>
+        <div class="card-sub" style="margin:0">${num(offRows)} linhas · ${num(STATE.offerCodes.size)} produtos · ${STATE.offers.srcName}</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="width:11px;height:11px;border-radius:3px;background:${semoffLoaded?'var(--blue)':'var(--border-strong)'};display:inline-block"></span>
+        <div><div style="font-weight:600;font-size:13px">Vendas sem ofertas</div>
+        <div class="card-sub" style="margin:0">${semoffLoaded?`${num(STATE.semoff.days)} dias · ${STATE.semoff.srcName}`:"não carregado — total = só ofertas"}</div></div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        ${share!=null?`<span class="pill">${share.toFixed(1)}% do faturamento em oferta</span>`:""}
+      </div>
+    </div>
+    ${!semoffLoaded?`<div class="banner info" style="margin:11px 0 0"><span class="bi">ℹ️</span><div>Envie também <b>Vendas sem ofertas</b> (resumo por dia) para que os totais reflitam a loja inteira. Sem ele, o painel considera só as ofertas.</div></div>`:""}
+  </div>`);
+  host.appendChild(card);
+}
+
+/* ---------- Visão geral ---------- */
+function renderVis(){
+  const a=STATE.active, hf=STATE.has_fat, hc=STATE.has_cup;
+  const totVol=sum(a.map(r=>r.volume_total));
+  const kpis=[];
+  if(hf){
+    kpis.push(["Faturamento total", brl(sum(a.map(r=>r.faturamento))), "", "green"]);
+    kpis.push(["Faturamento médio/dia", brl(mean(a.map(r=>r.faturamento))), "", ""]);
+  }else{
+    kpis.push(["Volume total (itens)", num(totVol), "", ""]);
+    kpis.push(["Volume médio/dia", num(mean(a.map(r=>r.volume_total))), "", ""]);
+  }
+  if(hc){
+    const totCup=sum(a.map(r=>r.cupons));
+    kpis.push(["Cupons no período", num(totCup), "", ""]);
+    if(hf) kpis.push(["Ticket médio", brl(sum(a.map(r=>r.faturamento))/totCup,2), "", "green"]);
+    else kpis.push(["Itens em oferta (códigos)", num(codesInOffer()), "", "green"]);
+  }else{
+    kpis.push(["Itens em oferta (códigos)", num(codesInOffer()), "", "green"]);
+    kpis.push(["Famílias em oferta", num(STATE.fam.length), "", "green"]);
+  }
+  const grid=el(`<div class="kpi-grid"></div>`);
+  kpis.forEach(([l,v,s,cls])=>grid.appendChild(el(
+    `<div class="kpi ${cls}"><div class="k-label">${l}</div><div class="k-value tnum">${v}</div>${s?`<div class="k-sub">${s}</div>`:""}</div>`)));
+  panel.appendChild(grid);
+
+  // Evolução diária
+  const card=el(`<div class="card"><h3>Evolução diária</h3>
+    <div class="seg" id="ev-seg">
+      <button data-m="Faturamento" class="${hf?'active':''}">Faturamento</button>
+      <button data-m="Volume" class="${hf?'':'active'}">Volume</button>
+      <button data-m="Cupons">Cupons</button>
+    </div>
+    <div class="plot" id="ev-plot"></div></div>`);
+  panel.appendChild(card);
+  let metric = hf? "Faturamento":"Volume";
+  function drawEv(){
+    const x=a.map(r=>r.date);
+    let traces=[], layout=baseLayout({height:380, hovermode:"x unified"});
+    if(metric==="Faturamento"){
+      if(!hf){ document.getElementById("ev-plot").innerHTML=infoBox("Envie a planilha de faturamento para ver esta métrica."); return; }
+      traces=[
+        {x,y:a.map(r=>r.faturamento),name:"Faturamento",mode:"lines",line:{color:BLUE,width:1.8}},
+        {x,y:a.map(r=>r.fat_ofertas),name:"Ofertas",mode:"lines",line:{color:ACCENT,width:1.6,dash:"dot"}},
+      ];
+      layout.yaxis.tickprefix="R$ ";
+    }else if(metric==="Volume"){
+      traces=[
+        {x,y:a.map(r=>r.volume_total),name:"Volume",mode:"lines",line:{color:BLUE,width:1.8}},
+        {x,y:a.map(r=>r.volume_ofertas),name:"Vol. ofertas",mode:"lines",line:{color:ACCENT,width:1.6,dash:"dot"}},
+      ];
+    }else{
+      if(!hc){ document.getElementById("ev-plot").innerHTML=infoBox("Envie a planilha de cupons para ver esta métrica."); return; }
+      traces=[{x,y:a.map(r=>r.cupons),name:"Cupons",mode:"lines",line:{color:BLUE,width:1.8}}];
+    }
+    Plotly.react("ev-plot", traces, layout, PLOT_CFG);
+  }
+  drawEv();
+  card.querySelector("#ev-seg").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    card.querySelectorAll("#ev-seg button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active"); metric=b.dataset.m; drawEv();
+  });
+
+  // dois cards: dia da semana + gauge
+  const row=el(`<div class="card-row">
+    <div class="card"><h3>Média por dia da semana</h3><div class="plot" id="wk-plot"></div></div>
+    <div class="card"><h3>Participação das ofertas no faturamento</h3><div class="plot" id="gauge-plot"></div></div>
+  </div>`);
+  panel.appendChild(row);
+  const col = hf? "faturamento":"volume_total";
+  const wkMean = groupByMean(a, "dow", col);
+  const wkY = WD_ORDER.map(d=> wkMean[d]||0);
+  Plotly.react("wk-plot",[{x:WD_ORDER,y:wkY,type:"bar",marker:{color:ACCENT}}],
+    baseLayout({height:300, margin:{t:10,b:30,l:54,r:10}, showlegend:false, yaxis:{tickprefix:hf?"R$ ":"",gridcolor:"#EEF1EC"}}), PLOT_CFG);
+  if(hf){
+    const share = sum(a.map(r=>r.fat_ofertas))/sum(a.map(r=>r.faturamento))*100;
+    Plotly.react("gauge-plot",[{type:"indicator",mode:"gauge+number",value:Math.round(share*10)/10,
+      number:{suffix:"%",font:{size:34,family:"JetBrains Mono"}},
+      gauge:{axis:{range:[0,50]},bar:{color:ACCENT},bgcolor:"#F4F6F2",bordercolor:"#E2E6DE"}}],
+      {height:300,margin:{t:24,b:10,l:18,r:18},paper_bgcolor:"rgba(0,0,0,0)",font:PLOT_FONT}, PLOT_CFG);
+  }else{
+    document.getElementById("gauge-plot").innerHTML=infoBox("Envie a planilha de faturamento para este indicador.");
+  }
+}
+function infoBox(t){ return `<div class="banner info" style="margin-top:8px"><span class="bi">ℹ️</span><div>${t}</div></div>`; }
+function codesInOffer(){ return STATE.offerCodes ? STATE.offerCodes.size : 0; }
+
+/* ---------- Destaques ---------- */
+function renderDest(){
+  const a=STATE.active, hf=STATE.has_fat, hc=STATE.has_cup;
+  const raw=[
+    ["Faturamento","faturamento",hf],
+    ["Volume de vendas","volume_total",true],
+    ["Cupons","cupons",hc],
+    ["Ticket médio","ticket_medio",hc],
+    ["Famílias em oferta","qtd_familias_oferta",true],
+    ["Volume de ofertas","volume_ofertas",true],
+    ["Faturamento de ofertas","fat_ofertas",hf],
+  ].filter(o=>o[2]);
+  const card=el(`<div class="card"><h3>Melhores dias por métrica</h3>
+    <div class="ctrl-row">
+      <div class="ctrl"><label>Métrica</label>
+        <select id="dest-metric">${raw.map((o,i)=>`<option value="${o[1]}" data-lbl="${o[0]}">${o[0]}</option>`).join("")}</select></div>
+      <div class="ctrl"><label>Quantos dias</label>
+        <div class="slider-line"><input type="range" id="dest-n" min="5" max="20" step="1" value="10"><b id="dest-nval" class="tnum">10</b></div></div>
+    </div>
+    <div id="dest-best"></div>
+    <div class="card-row" style="margin-top:8px">
+      <div class="plot" id="dest-plot"></div>
+      <div class="table-scroll" id="dest-table" style="max-height:none"></div>
+    </div>
+  </div>`);
+  panel.appendChild(card);
+  const sel=card.querySelector("#dest-metric"), nIn=card.querySelector("#dest-n"), nVal=card.querySelector("#dest-nval");
+  function draw(){
+    const col=sel.value, lbl=sel.selectedOptions[0].dataset.lbl, topn=+nIn.value;
+    nVal.textContent=topn;
+    const isMoney = ["faturamento","fat_ofertas","ticket_medio"].includes(col);
+    const dec = col==="ticket_medio"?2:0;
+    const ranked=[...a].filter(r=>!isNaN(r[col])).sort((x,y)=>y[col]-x[col]).slice(0,topn);
+    if(!ranked.length){ card.querySelector("#dest-best").innerHTML=""; document.getElementById("dest-plot").innerHTML=infoBox("Sem dados para esta métrica."); document.getElementById("dest-table").innerHTML=""; return; }
+    const best=ranked[0];
+    const bestVal = isMoney? brl(best[col],dec):num(best[col]);
+    card.querySelector("#dest-best").innerHTML =
+      `<div class="banner ok"><span class="bi">🏆</span><div>Melhor dia: <b>${fmtDate(best.date)} (${best.dow})</b> — ${bestVal}</div></div>`;
+    const asc=[...ranked].sort((x,y)=>x[col]-y[col]);
+    Plotly.react("dest-plot",[{type:"bar",orientation:"h",
+      x:asc.map(r=>r[col]), y:asc.map(r=>fmtDate(r.date)),
+      marker:{color:BLUE}, hovertemplate:"%{y}: %{x}<extra></extra>"}],
+      baseLayout({height:Math.max(300,topn*30), margin:{t:10,b:30,l:88,r:14},
+        xaxis:{tickprefix:isMoney?"R$ ":"",gridcolor:"#EEF1EC"}, yaxis:{automargin:true,gridcolor:"#fff"}}), PLOT_CFG);
+    document.getElementById("dest-table").innerHTML=
+      `<table><thead><tr><th>Data</th><th>Dia</th><th class="num">${lbl}</th></tr></thead><tbody>`+
+      ranked.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.dow}</td><td class="num">${isMoney?brl(r[col],dec):num(r[col])}</td></tr>`).join("")+
+      `</tbody></table>`;
+  }
+  draw(); sel.onchange=draw; nIn.oninput=draw;
+}
+
+/* ---------- Ofertas por família ---------- */
+function renderOfe(){
+  const fam=STATE.fam;
+  if(!fam.length){
+    panel.appendChild(el(`<div class="banner info"><span class="bi">ℹ️</span><div>Nenhuma oferta carregada. Envie a planilha de <b>Ofertas</b> (detalhada por produto/dia) na barra lateral.</div></div>`));
+    return;
+  }
+  const codOff=codesInOffer();
+  const reduc = codOff? (1-fam.length/codOff)*100 : 0;
+  const famName = document.getElementById("fam-select").selectedOptions[0].text.split(" ")[0];
+  const grid=el(`<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi green"><div class="k-label">Códigos distintos em oferta</div><div class="k-value tnum">${num(codOff)}</div></div>
+    <div class="kpi green"><div class="k-label">Famílias em oferta (${famName})</div><div class="k-value tnum">${num(fam.length)}</div></div>
+    <div class="kpi"><div class="k-label">Consolidação de códigos</div><div class="k-value tnum">-${reduc.toFixed(0)}%</div><div class="k-sub">Redução ao agrupar códigos da mesma família.</div></div>
+  </div>`);
+  panel.appendChild(grid);
+
+  const card=el(`<div class="card"><h3>Volume de produtos por família (em oferta)</h3>
+    <div class="card-sub">Cada código distinto da mesma família conta como 1 produto. Tamanho = volume vendido em oferta · cor = nº de códigos.</div>
+    <div class="ctrl-row"><div class="ctrl"><label>Top famílias</label>
+      <div class="slider-line"><input type="range" id="topfam" min="10" max="60" step="1" value="25"><b id="topfam-val" class="tnum">25</b></div></div>
+      <button class="btn btn-ghost" id="csv-fam" style="margin-left:auto">⬇ Baixar tabela (CSV)</button>
+    </div>
+    <div class="plot" id="tm-plot"></div>
+    <div class="table-scroll" id="fam-table"></div>
+  </div>`);
+  panel.appendChild(card);
+  const slider=card.querySelector("#topfam"), sVal=card.querySelector("#topfam-val");
+  function draw(){
+    const top=+slider.value; sVal.textContent=top;
+    const ft=fam.slice(0,top);
+    Plotly.react("tm-plot",[{
+      type:"treemap",
+      labels:["Ofertas",...ft.map(f=>f.fam)],
+      parents:["",...ft.map(()=> "Ofertas")],
+      values:[0,...ft.map(f=>f.volume_oferta)],
+      marker:{colors:[0,...ft.map(f=>f.codigos)], colorscale:"Greens", showscale:false, line:{width:1,color:"#fff"}},
+      branchvalues:"remainder",
+      customdata:[[0,0],...ft.map(f=>[f.codigos,f.dias_oferta])],
+      hovertemplate:"<b>%{label}</b><br>Volume oferta: %{value}<br>Códigos: %{customdata[0]}<br>Dias-oferta: %{customdata[1]}<extra></extra>",
+      texttemplate:"%{label}<br>%{value}",
+    }],{height:480,margin:{t:8,b:8,l:8,r:8},paper_bgcolor:"rgba(0,0,0,0)",font:PLOT_FONT}, PLOT_CFG);
+    document.getElementById("fam-table").innerHTML=
+      `<table><thead><tr><th>Família</th><th class="num">Códigos (produtos)</th><th class="num">Volume em oferta</th><th class="num">Dias-oferta (cód.)</th></tr></thead><tbody>`+
+      ft.map(f=>`<tr><td>${f.fam}</td><td class="num">${num(f.codigos)}</td><td class="num">${num(f.volume_oferta)}</td><td class="num">${num(f.dias_oferta)}</td></tr>`).join("")+
+      `</tbody></table>`;
+  }
+  draw(); slider.oninput=draw;
+  card.querySelector("#csv-fam").onclick=()=>{
+    const head="fam,codigos,volume_oferta,dias_oferta\n";
+    const body=fam.map(f=>`"${f.fam}",${f.codigos},${f.volume_oferta},${f.dias_oferta}`).join("\n");
+    downloadCSV(head+body,"ofertas_por_familia.csv");
+  };
+}
+
+/* ---------- Produtos em oferta (nível de produto) ---------- */
+function buildOfferProducts(){
+  const acc={};
+  for(const r of STATE.offers.rows){
+    const a=acc[r.code]||(acc[r.code]={code:r.code, prod:r.prod||("Cód. "+r.code),
+      fam:famValue(r), gru:r.gru, sec:r.sec, cat:r.cat, dias:0, vol:0, fat:0, days:{}});
+    a.dias+=1; a.vol+=r.vol; a.fat+=r.fat;
+    const dd=a.days[r.dkey]||(a.days[r.dkey]={vol:0,fat:0}); dd.vol+=r.vol; dd.fat+=r.fat;
+  }
+  return Object.values(acc).map(a=>{
+    const isos=Object.keys(a.days).sort();
+    return { code:a.code, prod:a.prod, fam:a.fam, gru:a.gru, sec:a.sec, cat:a.cat,
+      dias:a.dias, vol:Math.round(a.vol*1000)/1000, fat:Math.round(a.fat*100)/100,
+      vpd:a.dias? a.vol/a.dias:0, first:isos[0], last:isos[isos.length-1],
+      byDate:isos.map(i=>({iso:i, vol:Math.round(a.days[i].vol*1000)/1000, fat:Math.round(a.days[i].fat*100)/100})) };
+  });
+}
+
+function renderProd(){
+  if(!STATE.offers || !STATE.offers.rows.length){
+    panel.appendChild(el(`<div class="banner info"><span class="bi">ℹ️</span><div>Nenhuma oferta carregada. Envie a planilha de <b>Ofertas</b> (detalhada por produto/dia) na barra lateral.</div></div>`));
+    return;
+  }
+  const hf=STATE.has_fat;
+  const all=buildOfferProducts();
+  const totVol=sum(all.map(p=>p.vol)), totFat=sum(all.map(p=>p.fat)), totDias=sum(all.map(p=>p.dias));
+
+  const grid=el(`<div class="kpi-grid" style="grid-template-columns:repeat(${hf?4:3},1fr)">
+    <div class="kpi green"><div class="k-label">Produtos em oferta</div><div class="k-value tnum">${num(all.length)}</div></div>
+    <div class="kpi"><div class="k-label">Volume em oferta</div><div class="k-value tnum">${num(totVol)}</div></div>
+    ${hf?`<div class="kpi green"><div class="k-label">Faturamento em oferta</div><div class="k-value tnum">${brl(totFat)}</div></div>`:""}
+    <div class="kpi"><div class="k-label">Produto·dia em oferta</div><div class="k-value tnum">${num(totDias)}</div></div>
+  </div>`);
+  panel.appendChild(grid);
+
+  // famílias distintas para o filtro
+  const fams=[...new Set(all.map(p=>p.fam))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  const famName = document.getElementById("fam-select").selectedOptions[0].text.split(" ")[0];
+
+  const card=el(`<div class="card"><h3>Produtos em destaque</h3>
+    <div class="card-sub">Cada linha é um código (Procod) que esteve em oferta. Clique em um produto para ver os dias em destaque.</div>
+    <div class="ctrl-row" style="flex-wrap:wrap;gap:10px">
+      <div class="seg" id="pm-seg">
+        ${hf?`<button data-m="fat" class="active">Faturamento</button>`:""}
+        <button data-m="vol" class="${hf?'':'active'}">Volume</button>
+        <button data-m="dias">Dias em oferta</button>
+      </div>
+      <input id="pm-q" placeholder="Buscar por nome ou código…" style="flex:1;min-width:180px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px">
+      <select id="pm-fam" style="background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;max-width:220px">
+        <option value="">Todas as famílias (${famName})</option>
+        ${fams.map(f=>`<option value="${f.replace(/"/g,'&quot;')}">${f}</option>`).join("")}
+      </select>
+      <button class="btn btn-ghost" id="pm-csv">⬇ CSV</button>
+    </div>
+    <div class="ctrl-row"><div class="ctrl"><label>Top no gráfico</label>
+      <div class="slider-line"><input type="range" id="pm-top" min="10" max="40" step="1" value="20"><b id="pm-top-val" class="tnum">20</b></div></div>
+      <div class="card-sub" id="pm-count" style="margin-left:auto;align-self:center"></div>
+    </div>
+    <div class="plot" id="pm-plot"></div>
+    <div class="table-scroll" id="pm-table" style="max-height:460px"></div>
+  </div>`);
+  panel.appendChild(card);
+
+  const seg=card.querySelector("#pm-seg"), qEl=card.querySelector("#pm-q"),
+        famEl=card.querySelector("#pm-fam"), topEl=card.querySelector("#pm-top"),
+        topVal=card.querySelector("#pm-top-val"), countEl=card.querySelector("#pm-count");
+  let metric = hf?"fat":"vol";
+  const metricVal=(p)=> metric==="fat"?p.fat : metric==="dias"?p.dias : p.vol;
+  const metricLbl=()=> metric==="fat"?"Faturamento":metric==="dias"?"Dias em oferta":"Volume";
+  const fmtVal=(p)=> metric==="fat"?brl(p.fat) : metric==="dias"?num(p.dias) : num(p.vol);
+
+  function filtered(){
+    const q=qEl.value.trim().toLowerCase(), ff=famEl.value;
+    let arr=all.filter(p=>{
+      if(ff && p.fam!==ff) return false;
+      if(q && !((p.prod||"").toLowerCase().includes(q) || String(p.code).toLowerCase().includes(q))) return false;
+      return true;
+    });
+    arr.sort((a,b)=> metricVal(b)-metricVal(a));
+    return arr;
+  }
+
+  function drawChart(arr){
+    const top=Math.min(+topEl.value, arr.length); topVal.textContent=topEl.value;
+    const t=arr.slice(0,top).reverse();
+    Plotly.react("pm-plot",[{
+      type:"bar", orientation:"h",
+      x:t.map(metricVal), y:t.map(p=> p.prod.length>34? p.prod.slice(0,33)+"…":p.prod),
+      marker:{color:"#1D9E75"},
+      customdata:t.map(p=>[p.code, p.fam, p.dias]),
+      hovertemplate:"<b>%{y}</b><br>Cód.: %{customdata[0]}<br>Família: %{customdata[1]}<br>"+metricLbl()+": %{x}<br>Dias: %{customdata[2]}<extra></extra>",
+    }],{height:Math.max(220, top*24+50), margin:{t:6,b:30,l:8,r:14},
+        paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",font:PLOT_FONT,
+        xaxis:{gridcolor:"#ffffff12",zeroline:false}, yaxis:{automargin:true}}, PLOT_CFG);
+  }
+
+  function drawTable(arr){
+    const cap=200, show=arr.slice(0,cap);
+    countEl.textContent = arr.length>cap? `Mostrando ${cap} de ${num(arr.length)} produtos (refine com a busca).` : `${num(arr.length)} produto(s).`;
+    let html=`<table><thead><tr><th>Procod</th><th>Produto</th><th>Família</th><th class="num">Dias</th><th class="num">Volume</th>${hf?'<th class="num">Faturamento</th>':''}<th class="num">Vol/dia</th></tr></thead><tbody>`;
+    show.forEach((p,i)=>{
+      html+=`<tr class="pm-row" data-i="${i}" style="cursor:pointer"><td class="tnum">${p.code}</td><td>${p.prod}</td><td>${p.fam}</td><td class="num">${num(p.dias)}</td><td class="num">${num(p.vol)}</td>${hf?`<td class="num">${brl(p.fat)}</td>`:''}<td class="num">${p.vpd.toFixed(1)}</td></tr>`;
+      html+=`<tr class="pm-detail" data-d="${i}" style="display:none"><td colspan="${hf?7:6}" style="background:var(--surface-2)"></td></tr>`;
+    });
+    html+="</tbody></table>";
+    const host=card.querySelector("#pm-table"); host.innerHTML=html;
+    host.querySelectorAll(".pm-row").forEach(tr=>{
+      tr.addEventListener("click",()=>{
+        const i=+tr.dataset.i, det=host.querySelector(`.pm-detail[data-d="${i}"]`);
+        const open = det.style.display!=="none";
+        if(open){ det.style.display="none"; return; }
+        if(!det.dataset.built){
+          const p=show[i];
+          det.querySelector("td").innerHTML=
+            `<div style="padding:6px 2px 4px;font-size:12px;color:var(--muted)">${num(p.byDate.length)} dia(s) em oferta · ${p.first?fmtDate(dateFromKey(p.first)):""} → ${p.last?fmtDate(dateFromKey(p.last)):""}</div>`+
+            `<table style="margin:0"><thead><tr><th>Data</th><th class="num">Volume</th>${hf?'<th class="num">Faturamento</th>':''}</tr></thead><tbody>`+
+            p.byDate.map(d=>`<tr><td>${fmtDate(dateFromKey(d.iso))}</td><td class="num">${num(d.vol)}</td>${hf?`<td class="num">${brl(d.fat)}</td>`:''}</tr>`).join("")+
+            `</tbody></table>`;
+          det.dataset.built="1";
+        }
+        det.style.display="";
+      });
+    });
+  }
+
+  function draw(){ const arr=filtered(); drawChart(arr); drawTable(arr); }
+  seg.querySelectorAll("button").forEach(b=> b.onclick=()=>{
+    seg.querySelectorAll("button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active"); metric=b.dataset.m; draw();
+  });
+  qEl.addEventListener("input",draw);
+  famEl.addEventListener("change",draw);
+  topEl.addEventListener("input",()=>drawChart(filtered()));
+  card.querySelector("#pm-csv").onclick=()=>{
+    const arr=filtered();
+    const head=`procod,produto,familia,dias_oferta,volume_oferta${hf?',faturamento_oferta':''},vol_por_dia\n`;
+    const body=arr.map(p=>`${p.code},"${(p.prod||'').replace(/"/g,'""')}","${p.fam.replace(/"/g,'""')}",${p.dias},${p.vol}${hf?','+p.fat:''},${p.vpd.toFixed(2)}`).join("\n");
+    downloadCSV(head+body,"produtos_em_oferta.csv");
+  };
+  draw();
+}
+
+/* ---------- helper: filtro de família para itens ---------- */
+function itemFams(rows){ return [...new Set(rows.map(r=>famValue(r)))].sort((a,b)=>a.localeCompare(b,"pt-BR")); }
+function needItensBanner(){
+  panel.appendChild(el(`<div class="banner info"><span class="bi">ℹ️</span><div>Esta visão usa a planilha <b>Itens / Estoque</b> (um item por linha). Envie-a na barra lateral — você pode gerá-la no <b>conversor</b> a partir das planilhas de Volume e Faturamento.</div></div>`));
+}
+
+/* ---------- Itens fora de oferta ---------- */
+function renderFora(){
+  if(!STATE.items){ needItensBanner(); return; }
+  const hf=STATE.items.hasFat;
+  const all=STATE.items.rows.filter(r=> (r.volFora>0 || r.fatFora>0));
+  const totVolF=sum(all.map(r=>r.volFora)), totFatF=sum(all.map(r=>r.fatFora));
+  const nunca=all.filter(r=>!r.diasO).length;
+
+  panel.appendChild(el(`<div class="kpi-grid" style="grid-template-columns:repeat(${hf?4:3},1fr)">
+    <div class="kpi"><div class="k-label">Itens com venda fora de oferta</div><div class="k-value tnum">${num(all.length)}</div></div>
+    <div class="kpi"><div class="k-label">Volume fora de oferta</div><div class="k-value tnum">${num(totVolF)}</div></div>
+    ${hf?`<div class="kpi"><div class="k-label">Faturamento fora de oferta</div><div class="k-value tnum">${brl(totFatF)}</div></div>`:""}
+    <div class="kpi green"><div class="k-label">Nunca entraram em oferta</div><div class="k-value tnum">${num(nunca)}</div></div>
+  </div>`));
+
+  const fams=itemFams(all);
+  const famName=document.getElementById("fam-select").selectedOptions[0].text.split(" ")[0];
+  const card=el(`<div class="card"><h3>Itens fora de oferta</h3>
+    <div class="card-sub">Venda dos produtos <b>sem</b> destaque promocional. "% fora" = quanto do faturamento do item veio fora de oferta.</div>
+    <div class="ctrl-row" style="flex-wrap:wrap;gap:10px">
+      <div class="seg" id="fo-seg">
+        ${hf?`<button data-m="fat" class="active">Faturamento</button>`:""}
+        <button data-m="vol" class="${hf?'':'active'}">Volume</button>
+      </div>
+      <input id="fo-q" placeholder="Buscar por nome ou código…" style="flex:1;min-width:170px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px">
+      <select id="fo-fam" style="background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;max-width:210px">
+        <option value="">Todas as famílias (${famName})</option>${fams.map(f=>`<option value="${f.replace(/"/g,'&quot;')}">${f}</option>`).join("")}
+      </select>
+      <label style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer"><input type="checkbox" id="fo-nunca" style="accent-color:var(--accent)"> só nunca em oferta</label>
+      <button class="btn btn-ghost" id="fo-csv">⬇ CSV</button>
+    </div>
+    <div class="ctrl-row"><div class="ctrl"><label>Top no gráfico</label>
+      <div class="slider-line"><input type="range" id="fo-top" min="10" max="40" step="1" value="20"><b id="fo-top-val" class="tnum">20</b></div></div>
+      <div class="card-sub" id="fo-count" style="margin-left:auto;align-self:center"></div>
+    </div>
+    <div class="plot" id="fo-plot"></div>
+    <div class="table-scroll" id="fo-table" style="max-height:460px"></div>
+  </div>`);
+  panel.appendChild(card);
+
+  const seg=card.querySelector("#fo-seg"), qEl=card.querySelector("#fo-q"), famEl=card.querySelector("#fo-fam"),
+        nuncaEl=card.querySelector("#fo-nunca"), topEl=card.querySelector("#fo-top"), topVal=card.querySelector("#fo-top-val"),
+        countEl=card.querySelector("#fo-count");
+  let metric=hf?"fat":"vol";
+  const mv=r=> metric==="fat"?r.fatFora:r.volFora;
+  const mLbl=()=> metric==="fat"?"Faturamento fora":"Volume fora";
+
+  function filtered(){
+    const q=qEl.value.trim().toLowerCase(), ff=famEl.value, only=nuncaEl.checked;
+    let arr=all.filter(r=>{
+      if(ff && famValue(r)!==ff) return false;
+      if(only && r.diasO) return false;
+      if(q && !((r.prod||"").toLowerCase().includes(q)||String(r.code).toLowerCase().includes(q))) return false;
+      return true;
+    });
+    arr.sort((a,b)=>mv(b)-mv(a));
+    return arr;
+  }
+  function drawChart(arr){
+    const top=Math.min(+topEl.value,arr.length); topVal.textContent=topEl.value;
+    const t=arr.slice(0,top).reverse();
+    Plotly.react("fo-plot",[{type:"bar",orientation:"h",x:t.map(mv),
+      y:t.map(r=> r.prod.length>34?r.prod.slice(0,33)+"…":r.prod),
+      marker:{color:"#2F6FB0"}, customdata:t.map(r=>[r.code,famValue(r)]),
+      hovertemplate:"<b>%{y}</b><br>Cód.: %{customdata[0]}<br>Família: %{customdata[1]}<br>"+mLbl()+": %{x}<extra></extra>"}],
+      {height:Math.max(220,top*24+50),margin:{t:6,b:30,l:8,r:14},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",
+       font:PLOT_FONT,xaxis:{gridcolor:"#ffffff12",zeroline:false},yaxis:{automargin:true}},PLOT_CFG);
+  }
+  function drawTable(arr){
+    const cap=200, show=arr.slice(0,cap);
+    countEl.textContent=arr.length>cap?`Mostrando ${cap} de ${num(arr.length)} itens (refine com a busca).`:`${num(arr.length)} item(ns).`;
+    let h=`<table><thead><tr><th>Procod</th><th>Produto</th><th>Família</th><th class="num">Dias venda</th><th class="num">Volume fora</th>${hf?'<th class="num">Faturamento fora</th><th class="num">% fora</th>':''}</tr></thead><tbody>`;
+    show.forEach(r=>{ const pf=hf&&r.fatTot>0?(r.fatFora/r.fatTot*100):null;
+      h+=`<tr><td class="tnum">${r.code}</td><td>${r.prod}</td><td>${famValue(r)}</td><td class="num">${num(r.diasV)}</td><td class="num">${num(r.volFora)}</td>${hf?`<td class="num">${brl(r.fatFora)}</td><td class="num">${pf==null?'–':pf.toFixed(0)+'%'}</td>`:''}</tr>`; });
+    h+="</tbody></table>"; card.querySelector("#fo-table").innerHTML=h;
+  }
+  function draw(){ const arr=filtered(); drawChart(arr); drawTable(arr); }
+  seg.querySelectorAll("button").forEach(b=>b.onclick=()=>{seg.querySelectorAll("button").forEach(x=>x.classList.remove("active"));b.classList.add("active");metric=b.dataset.m;draw();});
+  qEl.addEventListener("input",draw); famEl.addEventListener("change",draw); nuncaEl.addEventListener("change",draw);
+  topEl.addEventListener("input",()=>drawChart(filtered()));
+  card.querySelector("#fo-csv").onclick=()=>{ const arr=filtered();
+    const head=`procod,produto,familia,dias_venda,volume_fora${hf?',faturamento_fora,pct_fora':''}\n`;
+    const body=arr.map(r=>{const pf=hf&&r.fatTot>0?(r.fatFora/r.fatTot*100).toFixed(1):'';return `${r.code},"${(r.prod||'').replace(/"/g,'""')}","${famValue(r).replace(/"/g,'""')}",${r.diasV},${r.volFora}${hf?`,${r.fatFora},${pf}`:''}`;}).join("\n");
+    downloadCSV(head+body,"itens_fora_de_oferta.csv"); };
+  draw();
+}
+
+/* ---------- Não pode faltar (estoque crítico) ---------- */
+function renderEstoque(){
+  if(!STATE.items){ needItensBanner(); return; }
+  if(!STATE.items.hasEstq){
+    panel.appendChild(el(`<div class="banner warn"><span class="bi">⚠️</span><div>A planilha <b>Itens / Estoque</b> enviada não tem a coluna de <b>Estoque</b>. Gere-a pelo conversor (a partir do Volume, que contém o estoque) para usar esta análise.</div></div>`));
+    return;
+  }
+  const hf=STATE.items.hasFat;
+  const base=STATE.items.rows.filter(r=> r.estq!=null && r.dem!=null && r.dem>0);
+  function cobOf(r){ return r.estq/r.dem; }
+  function statusOf(r){ const c=cobOf(r); if(r.estq<=0) return ["Sem estoque","#d9694e"]; if(c<3) return ["Crítico","#d9694e"]; if(c<STATE.coberturaMin) return ["Baixo","#caa23f"]; return ["OK","#1D9E75"]; }
+
+  const card0=el(`<div class="card" style="padding-bottom:8px"><h3>Itens que não podem faltar</h3>
+    <div class="card-sub">Cruzamento entre <b>importância</b> (quanto o item vende) e <b>cobertura de estoque</b> = estoque atual ÷ demanda média/dia. Ajuste o que considera "estoque baixo".</div>
+    <div class="ctrl-row" style="flex-wrap:wrap;gap:10px">
+      <div class="seg" id="es-seg">
+        ${hf?`<button data-m="fat" class="active">Importância: Faturamento</button>`:""}
+        <button data-m="vol" class="${hf?'':'active'}">Importância: Volume</button>
+      </div>
+      <div class="ctrl"><label>Estoque baixo abaixo de</label>
+        <div class="slider-line"><input type="range" id="es-cob" min="3" max="30" step="1" value="7"><b id="es-cob-val" class="tnum">7</b><span class="muted" style="font-size:12px">dias</span></div></div>
+    </div>
+    <div class="ctrl-row" style="flex-wrap:wrap;gap:10px">
+      <input id="es-q" placeholder="Buscar por nome ou código…" style="flex:1;min-width:170px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px">
+      <select id="es-fam" style="background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text);border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;max-width:210px"></select>
+      <label style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer"><input type="checkbox" id="es-all" style="accent-color:var(--accent)"> mostrar todos</label>
+      <button class="btn btn-ghost" id="es-csv">⬇ CSV</button>
+    </div>
+  </div>`);
+  panel.appendChild(card0);
+  const kpiHost=el(`<div class="kpi-grid" style="grid-template-columns:repeat(${hf?4:3},1fr)"></div>`); panel.appendChild(kpiHost);
+  const card=el(`<div class="card"><div class="card-sub" id="es-count" style="margin-bottom:8px"></div><div class="table-scroll" id="es-table" style="max-height:520px"></div></div>`);
+  panel.appendChild(card);
+
+  STATE.coberturaMin=STATE.coberturaMin||7;
+  const seg=card0.querySelector("#es-seg"), cobEl=card0.querySelector("#es-cob"), cobVal=card0.querySelector("#es-cob-val"),
+        qEl=card0.querySelector("#es-q"), famEl=card0.querySelector("#es-fam"), allEl=card0.querySelector("#es-all");
+  cobEl.value=STATE.coberturaMin; cobVal.textContent=STATE.coberturaMin;
+  const fams=itemFams(base); const famName=document.getElementById("fam-select").selectedOptions[0].text.split(" ")[0];
+  famEl.innerHTML=`<option value="">Todas as famílias (${famName})</option>`+fams.map(f=>`<option value="${f.replace(/"/g,'&quot;')}">${f}</option>`).join("");
+  let metric=hf?"fat":"vol";
+  const imp=r=> metric==="fat"?r.fatTot:r.volTot;
+
+  function rows(){
+    const q=qEl.value.trim().toLowerCase(), ff=famEl.value, showAll=allEl.checked;
+    let arr=base.filter(r=>{
+      if(ff && famValue(r)!==ff) return false;
+      if(q && !((r.prod||"").toLowerCase().includes(q)||String(r.code).toLowerCase().includes(q))) return false;
+      if(!showAll && statusOf(r)[0]==="OK") return false;
+      return true;
+    });
+    arr.sort((a,b)=> imp(b)-imp(a));
+    return arr;
+  }
+  function draw(){
+    STATE.coberturaMin=+cobEl.value; cobVal.textContent=cobEl.value;
+    const semEstq=base.filter(r=>r.estq<=0), baixo=base.filter(r=>{const s=statusOf(r)[0];return s==="Crítico"||s==="Baixo";});
+    const fatRisco=sum([...new Set([...semEstq,...baixo])].map(r=>r.fatTot));
+    kpiHost.innerHTML=
+      `<div class="kpi" style="border-color:#d9694e55"><div class="k-label">Sem estoque (≤ 0)</div><div class="k-value tnum" style="color:#d9694e">${num(semEstq.length)}</div></div>`+
+      `<div class="kpi" style="border-color:#caa23f55"><div class="k-label">Cobertura &lt; ${STATE.coberturaMin} dias</div><div class="k-value tnum" style="color:#caa23f">${num(baixo.length)}</div></div>`+
+      `<div class="kpi"><div class="k-label">Itens avaliados</div><div class="k-value tnum">${num(base.length)}</div></div>`+
+      (hf?`<div class="kpi green"><div class="k-label">Faturamento em risco</div><div class="k-value tnum">${brl(fatRisco)}</div></div>`:"");
+    const arr=rows(), cap=250, show=arr.slice(0,cap);
+    card.querySelector("#es-count").textContent = (allEl.checked?"Todos os itens":"Itens em risco")+" — "+(arr.length>cap?`mostrando ${cap} de ${num(arr.length)}`:`${num(arr.length)}`)+" (ordenado por importância).";
+    let h=`<table><thead><tr><th>Procod</th><th>Produto</th><th>Família</th><th class="num">Estoque</th><th class="num">Demanda/dia</th><th class="num">Cobertura (dias)</th>${hf?'<th class="num">Faturamento</th>':''}<th>Situação</th></tr></thead><tbody>`;
+    show.forEach(r=>{ const [st,col]=statusOf(r); const c=cobOf(r);
+      h+=`<tr><td class="tnum">${r.code}</td><td>${r.prod}</td><td>${famValue(r)}</td><td class="num">${num(r.estq)}</td><td class="num">${r.dem.toFixed(1)}</td><td class="num">${c<999?c.toFixed(1):'∞'}</td>${hf?`<td class="num">${brl(r.fatTot)}</td>`:''}<td><span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:${col}22;color:${col};border:1px solid ${col}55">${st}</span></td></tr>`; });
+    h+="</tbody></table>"; card.querySelector("#es-table").innerHTML=h;
+  }
+  seg.querySelectorAll("button").forEach(b=>b.onclick=()=>{seg.querySelectorAll("button").forEach(x=>x.classList.remove("active"));b.classList.add("active");metric=b.dataset.m;draw();});
+  cobEl.addEventListener("input",draw); qEl.addEventListener("input",draw); famEl.addEventListener("change",draw); allEl.addEventListener("change",draw);
+  card0.querySelector("#es-csv").onclick=()=>{ const arr=rows();
+    const head=`procod,produto,familia,estoque,demanda_dia,cobertura_dias${hf?',faturamento_total':''},situacao\n`;
+    const body=arr.map(r=>{const c=cobOf(r);return `${r.code},"${(r.prod||'').replace(/"/g,'""')}","${famValue(r).replace(/"/g,'""')}",${r.estq},${r.dem.toFixed(2)},${c.toFixed(1)}${hf?','+r.fatTot:''},${statusOf(r)[0]}`;}).join("\n");
+    downloadCSV(head+body,"itens_nao_pode_faltar.csv"); };
+  draw();
+}
+
+/* ---------- Evolução ---------- */
+function renderEvo(){
+  const a=STATE.active, hf=STATE.has_fat, hc=STATE.has_cup;
+  // agregação mensal
+  const meses={};
+  for(const r of a){
+    const m = meses[r.mes] || (meses[r.mes]={mes:r.mes,vol:0,voloff:0,fat:0,fatoff:0,cup:0,fam:[],dias:0});
+    m.vol+=r.volume_total; m.voloff+=r.volume_ofertas;
+    m.fat+=r.faturamento; m.fatoff+=r.fat_ofertas;
+    if(!isNaN(r.cupons)) m.cup+=r.cupons;
+    m.fam.push(r.qtd_familias_oferta); m.dias++;
+  }
+  const M=Object.values(meses).sort((x,y)=>x.mes<y.mes?-1:1).map(m=>{
+    const [y,mo]=m.mes.split("-");
+    return {...m, lbl:`${MES[+mo-1]}/${y.slice(2)}`,
+      ticket: (hf&&hc&&m.cup)? m.fat/m.cup:NaN,
+      pctOferta: hf&&m.fat? 100*m.fatoff/m.fat:NaN,
+      famMean: mean(m.fam)};
+  });
+  const card=el(`<div class="card"><h3>Comparativo mensal</h3>
+    <div class="plot" id="month-plot"></div>
+    <div class="banner info" style="margin-top:6px"><span class="bi">ℹ️</span><div>Meses incompletos (como o mês final do período) não são diretamente comparáveis por terem menos dias.</div></div>
+    <div class="table-scroll" id="month-table" style="max-height:none;margin-top:12px"></div>
+  </div>`);
+  panel.appendChild(card);
+  const yKey = hf?"fat":"vol";
+  const traces=[{type:"bar",x:M.map(m=>m.lbl),y:M.map(m=>m[yKey]),name:"Total",marker:{color:BLUE}}];
+  if(hf) traces.push({type:"bar",x:M.map(m=>m.lbl),y:M.map(m=>m.fatoff),name:"Ofertas",marker:{color:ACCENT}});
+  Plotly.react("month-plot",traces,baseLayout({height:360,barmode:"overlay",
+    yaxis:{tickprefix:hf?"R$ ":"",gridcolor:"#EEF1EC"}}), PLOT_CFG);
+
+  let cols=["Mês","Dias"]; if(hf) cols.push("Faturamento","% em oferta"); if(hf&&hc) cols.push("Ticket médio"); cols.push("Famílias em oferta/dia");
+  const rows = M.map(m=>{
+    const cells=[m.lbl,m.dias];
+    if(hf) cells.push(brl(m.fat), m.pctOferta.toFixed(1)+"%");
+    if(hf&&hc) cells.push(brl(m.ticket,2));
+    cells.push(m.famMean.toFixed(0));
+    return cells;
+  });
+  document.getElementById("month-table").innerHTML=
+    `<table><thead><tr>${cols.map((c,i)=>`<th class="${i?'num':''}">${c}</th>`).join("")}</tr></thead><tbody>`+
+    rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${i?'num':''}">${c}</td>`).join("")}</tr>`).join("")+`</tbody></table>`;
+
+  if(hf&&hc){
+    const tk=a.filter(r=>!isNaN(r.ticket_medio));
+    if(tk.length){
+      const mm=[]; for(let i=0;i<tk.length;i++){
+        const w=tk.slice(Math.max(0,i-6),i+1).map(r=>r.ticket_medio);
+        mm.push(w.length>=3? mean(w):NaN);
+      }
+      const c2=el(`<div class="card"><h3>Tendência do ticket médio</h3><div class="card-sub">Média móvel de 7 dias.</div><div class="plot" id="tk-plot"></div></div>`);
+      panel.appendChild(c2);
+      Plotly.react("tk-plot",[
+        {x:tk.map(r=>r.date),y:tk.map(r=>r.ticket_medio),name:"Diário",mode:"lines",line:{color:MUTED,width:1}},
+        {x:tk.map(r=>r.date),y:mm,name:"Média móvel 7d",mode:"lines",line:{color:ACCENT,width:2.4}},
+      ],baseLayout({height:320,yaxis:{tickprefix:"R$ ",gridcolor:"#EEF1EC"}}), PLOT_CFG);
+    }
+  }
+}
+
+/* ---------- Alertas & insights ---------- */
+function renderAlert(){
+  const a=STATE.active, hf=STATE.has_fat, hc=STATE.has_cup, fam=STATE.fam;
+  const alerts=[];
+
+  if(hf){
+    const wkMean=groupByMean(a,"dow","faturamento");
+    const drops=a.map(r=>({...r,_drop: wkMean[r.dow]? 100*(1-r.faturamento/wkMean[r.dow]):0}))
+      .filter(r=>r._drop>=STATE.dropThresh).sort((x,y)=>y._drop-x._drop).slice(0,8);
+    drops.forEach(r=>alerts.push(["🔻",`${fmtDate(r.date)} (${r.dow}): faturamento ${r._drop.toFixed(0)}% abaixo da média de ${r.dow} (${brl(r.faturamento)}).`]));
+  }
+  // baixa conversão
+  if(fam.length){
+    const med = median(fam.map(f=>f.dias_oferta));
+    const eff = fam.filter(f=>f.dias_oferta>=med).map(f=>({...f,vpd:f.volume_oferta/f.dias_oferta}))
+      .sort((x,y)=>x.vpd-y.vpd).slice(0,5);
+    eff.forEach(f=>alerts.push(["🐢",`Família "${f.fam}" teve muitos dias em oferta (${f.dias_oferta}) mas baixo giro (${f.vpd.toFixed(1)} itens/dia-oferta).`]));
+  }
+  // ticket caindo
+  if(hf&&hc){
+    const tk=a.filter(r=>!isNaN(r.ticket_medio)).map(r=>r.ticket_medio);
+    if(tk.length>=28){
+      const recent=mean(tk.slice(-14)), prev=mean(tk.slice(-28,-14));
+      if(prev && recent<prev*0.97) alerts.push(["📉",`Ticket médio em queda: últimas 2 semanas ${brl(recent,2)} vs ${brl(prev,2)} nas 2 anteriores.`]);
+    }
+  }
+
+  const aCard=el(`<div class="card"><h3>🔔 Alertas</h3><div id="alert-list" style="margin-top:8px"></div></div>`);
+  panel.appendChild(aCard);
+  const list=aCard.querySelector("#alert-list");
+  if(alerts.length) alerts.forEach(([ic,msg])=>list.appendChild(el(`<div class="alert"><span class="ai">${ic}</span><div>${msg}</div></div>`)));
+  else list.appendChild(el(`<div class="banner ok"><span class="bi">👍</span><div>Nenhum alerta relevante para os critérios atuais.</div></div>`));
+
+  // Insights
+  const bullets=[];
+  const col= hf?"faturamento":"volume_total";
+  const best=a.reduce((b,r)=> r[col]>b[col]?r:b, a[0]);
+  bullets.push(`O melhor dia do período foi <b>${fmtDate(best.date)} (${best.dow})</b> `+
+    (hf?`com ${brl(best.faturamento)} de faturamento.`:`com ${num(best.volume_total)} itens.`));
+  const wk=groupByMean(a,"dow",col);
+  const wkArr=WD_ORDER.map(d=>[d,wk[d]||0]).filter(x=>x[1]>0);
+  if(wkArr.length){
+    const mx=wkArr.reduce((b,x)=>x[1]>b[1]?x:b), mn=wkArr.reduce((b,x)=>x[1]<b[1]?x:b);
+    bullets.push(`O dia da semana mais forte é <b>${mx[0]}</b> e o mais fraco <b>${mn[0]}</b> (relação de ${(mx[1]/mn[1]).toFixed(1)}x).`);
+  }
+  if(hf){
+    const share=sum(a.map(r=>r.fat_ofertas))/sum(a.map(r=>r.faturamento))*100;
+    bullets.push(`As ofertas representam <b>${share.toFixed(1)}%</b> do faturamento do período.`);
+    const c=corr(a.map(r=>r.qtd_familias_oferta), a.map(r=>r.faturamento));
+    const rel=Math.abs(c)>.6?"forte":(Math.abs(c)>.3?"moderada":"fraca");
+    bullets.push(`A correlação entre <b>quantidade de ofertas</b> e faturamento é <b>${rel}</b> (${isNaN(c)?"—":c.toFixed(2)}) — mais ofertas ${c>0.3?"tende a acompanhar":"nem sempre significa"} mais venda.`);
+  }
+  if(hc){
+    const c2=corr(a.map(r=>r.cupons), a.map(r=>r[col]));
+    if(Math.abs(c2)>.6) bullets.push(`O faturamento acompanha de perto o <b>fluxo de clientes</b> (correlação cupons × ${col.replace("_"," ")}: ${c2.toFixed(2)}).`);
+  }
+  bullets.push(`Foram <b>${num(codesInOffer())} códigos</b> distintos em oferta, que consolidam em <b>${num(fam.length)} famílias</b>.`);
+
+  const iCard=el(`<div class="card"><h3>💡 Insights automáticos</h3><ul class="insights" style="margin:10px 0 0;padding-left:18px"></ul>
+    <div style="margin-top:16px"><button class="btn btn-ghost" id="csv-base">⬇ Baixar base diária consolidada (CSV)</button></div></div>`);
+  panel.appendChild(iCard);
+  const ul=iCard.querySelector("ul");
+  bullets.forEach(b=>ul.appendChild(el(`<li>${b}</li>`)));
+  iCard.querySelector("#csv-base").onclick=()=>{
+    const cols=["date","volume_total","volume_ofertas","qtd_ofertas_cod","faturamento","fat_ofertas","cupons","ticket_medio","dow","mes","pct_fat_oferta","qtd_familias_oferta"];
+    const head=cols.join(",")+"\n";
+    const body=STATE.active.map(r=>cols.map(c=> c==="date"? fmtDate(r.date) : (isNaN(r[c])?"":r[c])).join(",")).join("\n");
+    downloadCSV(head+body,"base_diaria.csv");
+  };
+}
+function median(arr){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const m=Math.floor(s.length/2); return s.length%2? s[m] : (s[m-1]+s[m])/2; }
+
+function downloadCSV(text,name){
+  const blob=new Blob(["\ufeff"+text],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+}
+
+/* =======================================================================
+   Pós-carregamento
+   ======================================================================= */
+function showDashboard(){
+  const sc=document.getElementById("screen-conv"); if(sc) sc.classList.add("hidden");
+  const spc=document.getElementById("side-panel-ctrls"); if(spc) spc.classList.remove("hidden");
+  document.querySelectorAll("#main-menu .mi").forEach(b=>b.classList.toggle("active", b.dataset.screen==="panel"));
+  document.getElementById("empty-state").classList.add("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
+  const a=STATE.active;
+  const p = a.length? `Período: <b>${fmtDate(a[0].date)}</b> a <b>${fmtDate(a[a.length-1].date)}</b> · ${a.length} dias com movimento` : "Sem dias com movimento";
+  document.getElementById("period-pill").innerHTML=p;
+  renderDetectionBar();
+  renderTab(STATE.currentTab);
+}
+
+/* =======================================================================
+   Uploads
+   ======================================================================= */
+const overlay=document.getElementById("overlay"), overlayMsg=document.getElementById("overlay-msg");
+function loading(on,msg){ if(msg) overlayMsg.textContent=msg; overlay.classList.toggle("show",on); }
+
+function markLoaded(boxId,hintId,fname){
+  document.getElementById(boxId).classList.add("loaded");
+  document.getElementById(hintId).innerHTML=`<span style="color:var(--accent)">✓ ${fname}</span>`;
+}
+
+document.getElementById("up-ofertas").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  loading(true,"Lendo planilha de ofertas…");
+  try{
+    await new Promise(r=>setTimeout(r,30));
+    STATE.offers = await readOffersList(f);
+    markLoaded("up-ofertas-box","up-ofertas-hint",f.name);
+    recompute(); showDashboard();
+  }catch(err){
+    alert("Não consegui ler a planilha de ofertas.\n\n"+err.message+"\n\nO arquivo deve ter colunas de código do produto, data e volume (faturamento e família são recomendados).");
+  }finally{ loading(false); }
+});
+document.getElementById("up-semoff").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  if(!STATE.offers){ alert("Envie primeiro a planilha de Ofertas."); e.target.value=""; return; }
+  loading(true,"Lendo vendas sem ofertas…");
+  try{
+    await new Promise(r=>setTimeout(r,30));
+    STATE.semoff = await readSemOffDaily(f);
+    markLoaded("up-semoff-box","up-semoff-hint",f.name);
+    recompute(); showDashboard();
+  }catch(err){
+    alert("Não consegui ler 'Vendas sem ofertas'.\n\n"+err.message+"\n\nO arquivo deve ter colunas de Data, Volume e Faturamento (resumo por dia).");
+  }finally{ loading(false); }
+});
+document.getElementById("up-itens").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  loading(true,"Lendo itens / estoque…");
+  try{
+    await new Promise(r=>setTimeout(r,30));
+    STATE.items = await readItemsMaster(f);
+    markLoaded("up-itens-box","up-itens-hint",f.name);
+    if(["fora","estoque"].includes(STATE.currentTab)) renderTab(STATE.currentTab);
+    else renderDetectionBar();
+  }catch(err){
+    alert("Não consegui ler 'Itens / Estoque'.\n\n"+err.message+"\n\nEsperado: um item por linha, com Procod, Produto, Estoque, Volume/Faturamento (total, em oferta e fora de oferta).");
+  }finally{ loading(false); }
+});
+
+/* Config */
+document.getElementById("fam-select").addEventListener("change",e=>{
+  STATE.famCol=e.target.value; if(STATE.offers){ recompute(); renderDetectionBar(); renderTab(STATE.currentTab); }
+});
+const dropRange=document.getElementById("drop-range"), dropValEl=document.getElementById("drop-val");
+dropRange.addEventListener("input",e=>{ STATE.dropThresh=+e.target.value; dropValEl.textContent=e.target.value+"%"; if(STATE.offers && STATE.currentTab==="alert") renderTab("alert"); });
+
+/* Tabs */
+document.getElementById("tabs").addEventListener("click",e=>{
+  const b=e.target.closest(".tab"); if(!b) return;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  b.classList.add("active"); renderTab(b.dataset.tab);
+});
+
+/* Empty-state buttons */
+document.getElementById("empty-upload").onclick=()=>document.getElementById("up-ofertas").click();
+document.getElementById("demo-btn").onclick=loadDemo;
+document.getElementById("empty-demo").onclick=loadDemo;
+
+/* Menu Painel / Conversor */
+document.querySelectorAll("#main-menu .mi").forEach(b=> b.onclick=()=>setScreen(b.dataset.screen));
+
+/* Conversor embutido */
+document.getElementById("cv-vol").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  if(!/\.xlsx$/i.test(f.name)){ alert("A planilha de volume precisa ser .xlsx para ler as cores.\n\nAbra o .xls no Excel/LibreOffice e use 'Salvar como → .xlsx'."); e.target.value=""; return; }
+  loading(true,"Lendo volume e cores… (pode levar ~1 min em arquivos grandes)");
+  try{ await new Promise(r=>setTimeout(r,30));
+    CV.vol=await cvReadVolume(f);
+    markLoaded("cv-vol-box","cv-vol-hint",f.name);
+    CV.colors=new Set(); CV.vol.colorStats.forEach(c=>{ const rgb=rgbFromHex6(c.hx); if(rgb&&(looksGreen(...rgb)||isOfferRGB(...rgb))) CV.colors.add(c.hx); });
+    cvRenderColors(); cvUpdateGo();
+  }catch(err){ alert("Falha ao ler o volume:\n\n"+err.message); }
+  finally{ loading(false); }
+});
+document.getElementById("cv-fat").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  loading(true,"Lendo faturamento…");
+  try{ await new Promise(r=>setTimeout(r,30)); CV.fat=await cvReadFat(f); markLoaded("cv-fat-box","cv-fat-hint",f.name); cvUpdateGo(); }
+  catch(err){ alert("Falha ao ler o faturamento:\n\n"+err.message); }
+  finally{ loading(false); }
+});
+document.getElementById("cv-go").addEventListener("click", async ()=>{
+  if(!CV.vol) return;
+  loading(true,"Convertendo e carregando no painel…");
+  try{ await new Promise(r=>setTimeout(r,30));
+    CV.out=cvConvert(); cvShowResult(CV.out); cvLoadIntoPanel(CV.out);
+  }catch(err){ alert("Erro na conversão:\n\n"+err.message); }
+  finally{ loading(false); }
+});
+document.getElementById("cv-dl-off").onclick=()=>{ if(CV.out) XLSX.writeFile(cvBuildOffersWB(CV.out),"Ofertas_em_destaque.xlsx"); };
+document.getElementById("cv-dl-sem").onclick=()=>{ if(CV.out) XLSX.writeFile(cvBuildSemWB(CV.out),"Vendas_sem_ofertas.xlsx"); };
+document.getElementById("cv-dl-item").onclick=()=>{ if(CV.out) XLSX.writeFile(cvBuildItemsWB(CV.out),"Itens_por_produto.xlsx"); };
+document.getElementById("cv-open").onclick=()=>setScreen("panel");
+
+/* =======================================================================
+   Dados de demonstração (sintéticos)
+   ======================================================================= */
+/* =======================================================================
+   CONVERSOR embutido — gera as 3 planilhas a partir das cruas e já carrega
+   os dados no painel (reaproveita helpers: fillColorKey, looksGreen,
+   isOfferRGB, rgbFromHex6, parseDateAny, dkey, normCode, toNum, num, brl…)
+   ======================================================================= */
+const CV={ vol:null, fat:null, colors:new Set(), out:null };
+function cvLbl(iso){ const[y,m,d]=iso.split("-"); return d+"/"+m+"/"+y; }
+function cvCellNum(v){ if(v&&typeof v==="object"&&"result"in v) v=v.result; return (typeof v==="number")?v:toNum(v); }
+
+async function cvReadVolume(file){
+  const buf=await file.arrayBuffer();
+  const wb=new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+  const ws=wb.worksheets[0];
+  const hv=ws.getRow(1).values; const H=[]; for(let i=1;i<hv.length;i++) H[i-1]=(hv[i]==null?"":String(hv[i]).trim());
+  const find=re=>{ for(let i=0;i<H.length;i++) if(re.test(H[i])) return i; return -1; };
+  const findD=re=>{ let fb=-1; for(let i=0;i<H.length;i++){ if(re.test(H[i])){ if(!/^cod/i.test(H[i])) return i; if(fb<0) fb=i; } } return fb; };
+  const ci={ code:find(/^proc|c[oó]d/i), prod:findD(/prodsc|produto|descr/i), und:find(/^und|unid/i), estq:find(/estoque|estq/i),
+             sec:findD(/se[cç][aã]o/i), gru:findD(/^grupo$|dscgrupo|^grupo /i), sub:findD(/subgrupo|sgrupo/i), cat:findD(/categoria|dsccat/i) };
+  if(ci.code<0) ci.code=0;
+  const dcols=[]; for(let i=0;i<H.length;i++){ const d=parseDateAny(H[i]); if(d) dcols.push({idx0:i, iso:dkey(d)}); }
+  if(!dcols.length) throw new Error("Não encontrei colunas de data (cabeçalho d/m/aaaa) na planilha de volume.");
+  const isGreen=hx=>{ const rgb=rgbFromHex6(hx); return rgb && (looksGreen(...rgb)||isOfferRGB(...rgb)); };
+  const rows=[], totVolDay={}, colorCount={}; dcols.forEach(d=>totVolDay[d.iso]=0);
+  const last=ws.rowCount;
+  for(let r=2;r<=last;r++){
+    const row=ws.getRow(r); const code=row.getCell(ci.code+1).value;
+    if(code==null||code==="") continue;
+    let estq=null;
+    if(ci.estq>=0){ const raw=row.getCell(ci.estq+1).value; estq=(raw==null||raw==="")?null:cvCellNum(raw); }
+    const meta={ code:String(code).trim(),
+      prod:ci.prod>=0?String(row.getCell(ci.prod+1).value||"").trim():"",
+      und:ci.und>=0?String(row.getCell(ci.und+1).value||"").trim():"",
+      sec:ci.sec>=0?String(row.getCell(ci.sec+1).value||"").trim():"",
+      gru:ci.gru>=0?String(row.getCell(ci.gru+1).value||"").trim():"",
+      sub:ci.sub>=0?String(row.getCell(ci.sub+1).value||"").trim():"",
+      cat:ci.cat>=0?String(row.getCell(ci.cat+1).value||"").trim():"",
+      estq, volTot:0, diasV:0 };
+    for(const d of dcols){
+      const cell=row.getCell(d.idx0+1); const val=cvCellNum(cell.value);
+      totVolDay[d.iso]+=val; meta.volTot+=val; if(val) meta.diasV++;
+      const fk=fillColorKey(cell); const hx=fk&&fk.hex?fk.hex:null;
+      if(hx && isGreen(hx)){ colorCount[hx]=(colorCount[hx]||0)+1; (meta._cells||(meta._cells=[])).push({iso:d.iso,val,hx}); }
+    }
+    rows.push(meta);
+  }
+  const colorStats=Object.entries(colorCount).map(([hx,count])=>({hx,count})).sort((a,b)=>b.count-a.count);
+  return { rows, totVolDay, dcols, colorStats, ndays:dcols.length };
+}
+
+async function cvReadFat(file){
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:"array",cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const H=(aoa[0]||[]).map(x=>x==null?"":String(x).trim());
+  let codeI=0; for(let i=0;i<H.length;i++){ if(/^proc|c[oó]d/i.test(H[i])){ codeI=i; break; } }
+  const dcols=[]; for(let i=0;i<H.length;i++){ const d=parseDateAny(H[i]); if(d) dcols.push({i, iso:dkey(d)}); }
+  const map={}, totFatDay={}; dcols.forEach(d=>totFatDay[d.iso]=0);
+  for(let r=1;r<aoa.length;r++){ const row=aoa[r]||[]; const code=row[codeI]; if(code==null||code==="") continue;
+    const key=String(code).trim(); const mm=map[key]||(map[key]={});
+    for(const d of dcols){ const val=toNum(row[d.i]); if(val){ mm[d.iso]=val; totFatDay[d.iso]+=val; } } }
+  return { map, totFatDay };
+}
+
+function cvConvert(){
+  const sel=CV.colors, fatMap=CV.fat?CV.fat.map:null;
+  const offers=[], offVolDay={}, offFatDay={}, offProd={};
+  for(const m of CV.vol.rows){ for(const c of (m._cells||[])){ if(!sel.has(c.hx)) continue;
+    const fat=fatMap&&fatMap[m.code]&&fatMap[m.code][c.iso]!=null?fatMap[m.code][c.iso]:0;
+    offers.push({code:m.code,prod:m.prod,und:m.und,sec:m.sec,gru:m.gru,sub:m.sub,cat:m.cat,iso:c.iso,vol:Math.round(c.val*1000)/1000,fat:Math.round(fat*100)/100});
+    offVolDay[c.iso]=(offVolDay[c.iso]||0)+c.val; offFatDay[c.iso]=(offFatDay[c.iso]||0)+fat;
+    const a=offProd[m.code]||(offProd[m.code]={vol:0,fat:0,dias:0}); a.vol+=c.val; a.fat+=fat; a.dias+=1; } }
+  offers.sort((a,b)=> a.iso<b.iso?-1:a.iso>b.iso?1:(a.code<b.code?-1:1));
+  const isos=CV.vol.dcols.map(d=>d.iso).sort();
+  const totVol=CV.vol.totVolDay, totFat=CV.fat?CV.fat.totFatDay:null;
+  const semoff=isos.map(iso=>({iso, vol:Math.round(((totVol[iso]||0)-(offVolDay[iso]||0))*1000)/1000,
+    fat: totFat? Math.round(((totFat[iso]||0)-(offFatDay[iso]||0))*100)/100 : 0}));
+  const famAcc={}; for(const o of offers){ const f=o.sub||"(sem família)";
+    const a=famAcc[f]||(famAcc[f]={fam:f,gru:o.gru,codes:new Set(),vol:0,dias:0,fat:0});
+    a.codes.add(o.code); a.vol+=o.vol; a.dias+=1; a.fat+=o.fat; }
+  const fam=Object.values(famAcc).map(a=>({fam:a.fam,gru:a.gru,cod:a.codes.size,dias:a.dias,vol:Math.round(a.vol),fat:Math.round(a.fat*100)/100})).sort((x,y)=>y.fat-x.fat);
+  const ND=CV.vol.ndays||isos.length||1;
+  const items=CV.vol.rows.map(m=>{ const o=offProd[m.code]||{vol:0,fat:0,dias:0};
+    const fatTot=fatMap&&fatMap[m.code]?Object.values(fatMap[m.code]).reduce((s,x)=>s+x,0):0;
+    const volTot=m.volTot||0, dem=volTot/ND;
+    return {code:m.code,prod:m.prod,und:m.und,sec:m.sec,gru:m.gru,sub:m.sub,cat:m.cat,estq:m.estq,
+      volTot:Math.round(volTot*1000)/1000,volOff:Math.round(o.vol*1000)/1000,volFora:Math.round((volTot-o.vol)*1000)/1000,
+      fatTot:Math.round(fatTot*100)/100,fatOff:Math.round(o.fat*100)/100,fatFora:Math.round((fatTot-o.fat)*100)/100,
+      diasV:m.diasV||0,diasO:o.dias,dem:Math.round(dem*1000)/1000,cob:(m.estq!=null&&dem>0)?Math.round(m.estq/dem*10)/10:null}; }).sort((a,b)=>b.fatTot-a.fatTot);
+  const prods=new Set(offers.map(o=>o.code));
+  const sumOffVol=offers.reduce((s,o)=>s+o.vol,0), sumOffFat=offers.reduce((s,o)=>s+o.fat,0);
+  const sumTotVol=isos.reduce((s,i)=>s+(totVol[i]||0),0), sumTotFat=totFat?isos.reduce((s,i)=>s+(totFat[i]||0),0):0;
+  return { offers, semoff, fam, items, isos, hasFat:!!CV.fat, hasEstq:CV.vol.rows.some(m=>m.estq!=null),
+    stat:{ offRows:offers.length, prods:prods.size, fams:fam.length, nItens:items.length, sumOffVol, sumOffFat, sumTotVol, sumTotFat,
+      share: sumTotFat>0? sumOffFat/sumTotFat*100 : (sumTotVol>0? sumOffVol/sumTotVol*100 : 0) } };
+}
+
+function cvAoa(aoa,cols){ const ws=XLSX.utils.aoa_to_sheet(aoa); if(cols) ws["!cols"]=cols; return ws; }
+function cvBuildOffersWB(O){
+  const aoa=[["Procod","Produto","Und","Seção","Grupo","Subgrupo","Categoria","Data","Volume","Faturamento"]];
+  for(const o of O.offers) aoa.push([o.code,o.prod,o.und,o.sec,o.gru,o.sub,o.cat,cvLbl(o.iso),o.vol,o.fat]);
+  const fa=[["Subgrupo (família)","Grupo","Códigos (produtos)","Dias-oferta","Volume","Faturamento"]];
+  for(const f of O.fam) fa.push([f.fam,f.gru,f.cod,f.dias,f.vol,f.fat]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,cvAoa(aoa,[{wch:9},{wch:38},{wch:6},{wch:16},{wch:20},{wch:20},{wch:18},{wch:12},{wch:12},{wch:14}]),"Ofertas");
+  XLSX.utils.book_append_sheet(wb,cvAoa(fa,[{wch:24},{wch:20},{wch:18},{wch:12},{wch:14},{wch:16}]),"Resumo por família");
+  return wb;
+}
+function cvBuildSemWB(O){
+  const aoa=[["Data","Volume","Faturamento"]]; for(const s of O.semoff) aoa.push([cvLbl(s.iso),s.vol,s.fat]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,cvAoa(aoa,[{wch:14},{wch:16},{wch:18}]),"Sem ofertas"); return wb;
+}
+function cvBuildItemsWB(O){
+  const aoa=[["Procod","Produto","Und","Seção","Grupo","Subgrupo","Categoria","Estoque","Volume total","Volume em oferta","Volume fora de oferta","Faturamento total","Faturamento em oferta","Faturamento fora de oferta","Dias com venda","Dias em oferta","Demanda média/dia","Dias de cobertura"]];
+  for(const it of O.items) aoa.push([it.code,it.prod,it.und,it.sec,it.gru,it.sub,it.cat,it.estq,it.volTot,it.volOff,it.volFora,it.fatTot,it.fatOff,it.fatFora,it.diasV,it.diasO,it.dem,it.cob]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,cvAoa(aoa,[{wch:9},{wch:38},{wch:6},{wch:16},{wch:18},{wch:20},{wch:18},{wch:11},{wch:13},{wch:15},{wch:16},{wch:15},{wch:16},{wch:18},{wch:12},{wch:12},{wch:14},{wch:13}]),"Itens"); return wb;
+}
+
+function cvOfferSummary(){
+  const sel=CV.colors; let cells=0; const prods=new Set(); const days=new Set(); const samples=[];
+  for(const m of CV.vol.rows){ for(const c of (m._cells||[])){ if(!sel.has(c.hx)) continue;
+    cells++; prods.add(m.code); days.add(c.iso);
+    if(samples.length<10 && c.val>0) samples.push({prod:m.prod||("Cód. "+m.code), iso:c.iso, val:c.val, hx:c.hx}); } }
+  return {cells, prods:prods.size, days:days.size, samples};
+}
+function cvValidation(){
+  const host=document.getElementById("cv-valid"); if(!host||!CV.vol) return;
+  const s=cvOfferSummary();
+  const total=CV.vol.rows.length*(CV.vol.ndays||1);
+  const share= total? s.cells/total*100 : 0;
+  const cols=[...CV.colors];
+  let st;
+  if(!cols.length) st=["warn","⚠️","Nenhuma cor de oferta marcada — selecione a cor verde acima."];
+  else if(s.cells===0) st=["warn","⚠️","A(s) cor(es) marcada(s) não apareceram em nenhuma célula. Confira a seleção."];
+  else if(share>45) st=["warn","⚠️",`Muitas células marcadas (${share.toFixed(0)}% do total) — pode haver uma cor que não é de oferta selecionada.`];
+  else st=["ok","✅",`Detecção OK: ${num(s.cells)} células em oferta, em ${num(s.prods)} produtos e ${num(s.days)} dias.`];
+  const swatches=cols.length?cols.map(hx=>`<span style="display:inline-flex;align-items:center;gap:6px"><span class="cv-sw" style="width:22px;height:22px;background:#${hx}"></span><span class="tnum">#${hx}</span></span>`).join("&nbsp;&nbsp;&nbsp;"):'<span class="muted">—</span>';
+  let html=`<div style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;margin:0 0 11px">
+      <div style="display:flex;align-items:center;gap:9px"><span class="card-sub" style="margin:0">Cor de oferta:</span>${swatches}</div>
+      <div class="muted" style="font-size:12.5px">${num(s.cells)} células · ${num(s.prods)} produtos · ${num(s.days)} dias · ${share.toFixed(1)}% do total</div>
+    </div>`;
+  html+=`<div class="banner ${st[0]}" style="margin:0 0 ${s.samples.length?12:0}px"><span class="bi">${st[1]}</span><div>${st[2]}</div></div>`;
+  if(s.samples.length){
+    html+=`<div class="card-sub" style="margin:0 0 7px">Exemplos detectados — cada célula colorida é uma oferta:</div><div style="display:flex;flex-wrap:wrap;gap:9px">`;
+    html+=s.samples.map(x=>`<div style="border:1px solid var(--border-strong);border-radius:9px;overflow:hidden;min-width:128px">
+      <div style="background:#${x.hx};color:#06140d;font-weight:700;padding:6px 11px;font-family:'JetBrains Mono',monospace;font-size:13px">${num(x.val)}</div>
+      <div style="padding:5px 9px;font-size:11.5px"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${x.prod}</div><div class="muted">${cvLbl(x.iso)}</div></div>
+    </div>`).join("");
+    html+=`</div>`;
+  }
+  host.innerHTML=html;
+}
+
+function cvRenderColors(){
+  const wrap=document.getElementById("cv-color-wrap"), chips=document.getElementById("cv-chips"); chips.innerHTML="";
+  const stats=CV.vol.colorStats.slice(0,14); wrap.classList.remove("hidden");
+  if(!stats.length){ chips.innerHTML=`<div class="banner warn" style="margin:0"><span class="bi">⚠️</span><div>Nenhuma célula esverdeada encontrada. Se as ofertas usam <b>formatação condicional</b>, a cor não fica gravada — pinte as células de verde e salve em .xlsx.</div></div>`; cvValidation(); return; }
+  stats.forEach(c=>{
+    const on=CV.colors.has(c.hx);
+    const chip=el(`<label class="cv-chip${on?' on':''}"><input type="checkbox" ${on?'checked':''}><span class="cv-sw" style="background:#${c.hx}"></span><span class="tnum">#${c.hx}</span><span style="color:var(--muted)">· ${num(c.count)}</span></label>`);
+    chip.querySelector("input").addEventListener("change",ev=>{ if(ev.target.checked) CV.colors.add(c.hx); else CV.colors.delete(c.hx); chip.classList.toggle("on",ev.target.checked); cvValidation(); });
+    chips.appendChild(chip);
+  });
+  cvValidation();
+}
+function cvUpdateGo(){ const ok=!!CV.vol; document.getElementById("cv-go").disabled=!ok;
+  document.getElementById("cv-go-hint").textContent= ok? (CV.fat?"Volume e faturamento prontos.":"Pronto. (Sem faturamento, sai só o volume.)") : "Envie ao menos a planilha de volume."; }
+
+function cvShowResult(O){
+  const hf=O.hasFat;
+  const cards=[
+    ["Produtos em oferta",num(O.stat.prods),"green"],
+    ["Volume em oferta",num(O.stat.sumOffVol),""],
+    hf?["Faturamento em oferta",brl(O.stat.sumOffFat),"green"]:["Volume total",num(O.stat.sumTotVol),""],
+    ["% em oferta",(O.stat.share||0).toFixed(1)+"%",""],
+    ["Itens (mestre)",num(O.stat.nItens),""],
+  ];
+  document.getElementById("cv-kpis").innerHTML=cards.map(([l,v,c])=>`<div class="kpi ${c}"><div class="k-label">${l}</div><div class="k-value tnum">${v}</div></div>`).join("");
+  document.getElementById("cv-result").classList.remove("hidden");
+}
+
+function cvLoadIntoPanel(O){
+  STATE.offers={ rows:O.offers.map(o=>({code:normCode(o.code),prod:o.prod,sub:o.sub,gru:o.gru,sec:o.sec,cat:o.cat,date:dateFromKey(o.iso),dkey:o.iso,vol:o.vol,fat:o.fat})), hasFat:O.hasFat, srcName:"(conversor)" };
+  const map={}; O.semoff.forEach(s=>{ map[s.iso]={vol:s.vol,fat:s.fat}; });
+  STATE.semoff={ map, hasFat:O.hasFat, days:O.semoff.length, srcName:"(conversor)" };
+  STATE.items={ rows:O.items.map(it=>Object.assign({},it,{code:normCode(it.code)})), hasFat:O.hasFat, hasEstq:O.hasEstq, srcName:"(conversor)" };
+  markLoaded("up-ofertas-box","up-ofertas-hint","(conversor)");
+  markLoaded("up-semoff-box","up-semoff-hint","(conversor)");
+  markLoaded("up-itens-box","up-itens-hint","(conversor)");
+  recompute();
+}
+
+function setScreen(s){
+  const conv=(s==="conv");
+  document.getElementById("screen-conv").classList.toggle("hidden",!conv);
+  document.getElementById("side-panel-ctrls").classList.toggle("hidden",conv);
+  document.querySelectorAll("#main-menu .mi").forEach(b=>b.classList.toggle("active", b.dataset.screen===s));
+  if(conv){
+    document.getElementById("empty-state").classList.add("hidden");
+    document.getElementById("dashboard").classList.add("hidden");
+  }else{
+    if(STATE.offers) showDashboard();
+    else { document.getElementById("dashboard").classList.add("hidden"); document.getElementById("empty-state").classList.remove("hidden"); }
+  }
+}
+
+function loadDemo(){
+  loading(true,"Gerando dados de demonstração…");
+  setTimeout(()=>{
+    try{ buildDemo();
+      markLoaded("up-ofertas-box","up-ofertas-hint","demo_ofertas.xlsx");
+      markLoaded("up-semoff-box","up-semoff-hint","demo_sem_ofertas.xlsx");
+      markLoaded("up-itens-box","up-itens-hint","demo_itens.xlsx");
+      recompute(); STATE.currentTab="vis";
+      document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab==="vis"));
+      showDashboard();
+    }catch(err){ alert("Erro ao gerar demo: "+err.message); }
+    finally{ loading(false); }
+  },40);
+}
+
+function rng(seed){ let s=seed>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+function buildDemo(){
+  const R=rng(20260625);
+  const familias=[
+    ["REFRIGERANTE",["Refri Cola 2L","Refri Cola Lata","Guaraná 2L","Guaraná Lata","Refri Laranja 2L","Tônica 1,5L"]],
+    ["CERVEJA",["Cerveja Pilsen Lata","Cerveja Long Neck","Cerveja Puro Malte","Cerveja Litrão","Cerveja Zero"]],
+    ["BISCOITO",["Biscoito Recheado","Biscoito Cream Cracker","Wafer Choc","Cookie Gotas","Rosquinha Coco"]],
+    ["LEITE",["Leite Integral 1L","Leite Desnatado 1L","Leite Semi 1L","Leite em Pó 400g"]],
+    ["CAFÉ",["Café Torrado 500g","Café Solúvel 200g","Café Cápsula","Café Gourmet 250g"]],
+    ["ARROZ E FEIJÃO",["Arroz Tipo 1 5kg","Arroz Parboilizado","Feijão Carioca 1kg","Feijão Preto 1kg"]],
+    ["LIMPEZA",["Sabão em Pó 1kg","Detergente","Água Sanitária","Amaciante 2L","Desinfetante"]],
+    ["HIGIENE",["Shampoo 350ml","Sabonete","Creme Dental","Papel Higiênico 12un","Desodorante"]],
+    ["SNACKS",["Salgadinho Milho","Batata Chips","Amendoim","Pipoca Micro"]],
+    ["HORTIFRUTI",["Banana kg","Tomate kg","Maçã kg","Batata kg","Cebola kg"]],
+  ];
+  // produtos
+  const prods=[]; let pc=1000;
+  familias.forEach((fa,fi)=>{
+    fa[1].forEach((nm,li)=>{
+      pc+=Math.floor(R()*7)+1;
+      const price=2+R()*28;
+      const secao = (fa[0].includes("HORTI")||fa[0].includes("LEITE")) ? "PERECÍVEIS" : "SECOS";
+      const sub = fa[0] + " " + String.fromCharCode(65 + Math.floor(li/2)); // ~2 códigos por subgrupo
+      prods.push({code:pc, prod:nm, sec:secao, gru:fa[0], cat:fa[0], sub, price, base:8+R()*50});
+    });
+  });
+  // datas: ~75 dias até 25/06/2026
+  const dates=[]; const end=new Date(2026,5,25);
+  for(let i=74;i>=0;i--){ const d=new Date(end); d.setDate(end.getDate()-i); dates.push(d); }
+  const nD=dates.length, nP=prods.length;
+  const dowMult=[1,1.02,1.05,1.08,1.3,1.55,0.9]; // seg..dom
+
+  const offerRows=[];
+  const semoff={}; // dkey -> {vol,fat}
+  for(let j=0;j<nD;j++) semoff[dkey(dates[j])]={vol:0,fat:0};
+  const pacc=prods.map(pr=>({code:normCode(pr.code),prod:pr.prod,und:"UN",sec:pr.sec,gru:pr.gru,sub:pr.sub,cat:pr.cat,
+    estq:Math.round(R()*120)-8, volTot:0,volOff:0,fatTot:0,fatOff:0,diasV:0,diasO:0}));
+
+  for(let p=0;p<nP;p++){
+    const pr=prods[p], a=pacc[p];
+    const offer=new Array(nD).fill(false);
+    let nWin=R()<0.55? (R()<0.5?1:2):0;
+    for(let w=0;w<nWin;w++){
+      const start=Math.floor(R()*(nD-5)); const len=3+Math.floor(R()*7);
+      for(let j=start;j<Math.min(nD,start+len);j++) offer[j]=true;
+    }
+    for(let j=0;j<nD;j++){
+      const wd=(dates[j].getDay()+6)%7;
+      let base=pr.base*dowMult[wd]*(0.8+R()*0.4);
+      if(offer[j]) base*=(1.6+R()*1.1);
+      const vol=Math.max(0,Math.round(base));
+      const fat=Math.round(vol*pr.price*100)/100;
+      const k=dkey(dates[j]);
+      a.volTot+=vol; a.fatTot+=fat; if(vol>0) a.diasV+=1;
+      if(offer[j]){
+        offerRows.push({code:normCode(pr.code), prod:pr.prod, sub:pr.sub, gru:pr.gru, sec:pr.sec, cat:pr.cat,
+                        date:dates[j], dkey:k, vol, fat});
+        a.volOff+=vol; a.fatOff+=fat; a.diasO+=1;
+      }else{
+        semoff[k].vol+=vol; semoff[k].fat+=Math.round(fat*100)/100;
+      }
+    }
+  }
+  const itemRows=pacc.map(a=>({...a,
+    volTot:Math.round(a.volTot), volOff:Math.round(a.volOff), volFora:Math.round(a.volTot-a.volOff),
+    fatTot:Math.round(a.fatTot*100)/100, fatOff:Math.round(a.fatOff*100)/100, fatFora:Math.round((a.fatTot-a.fatOff)*100)/100,
+    dem:a.volTot/nD, cob:null}));
+  STATE.offers={rows:offerRows, hasFat:true, srcName:"demo_ofertas.xlsx"};
+  STATE.semoff={map:semoff, hasFat:true, srcName:"demo_sem_ofertas.xlsx", days:nD};
+  STATE.items={rows:itemRows, hasFat:true, hasEstq:true, srcName:"demo_itens.xlsx"};
+}
+</script>
+</body>
+</html>
